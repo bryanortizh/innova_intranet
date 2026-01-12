@@ -1,10 +1,100 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface MiroTalkMeeting {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  room: string;
+  [key: string]: unknown;
+}
 
 export default function MeetingsPage() {
   const [selectedView, setSelectedView] = useState('upcoming');
+  const [apiMeetings, setApiMeetings] = useState<MiroTalkMeeting[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [creatingMeeting, setCreatingMeeting] = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
+
+  const API_KEY_SECRET = "mirotalk_default_secret";
+  const MIROTALK_BASE_URL = "https://mirotalk-webrtc-p2p-production-fbb6.up.railway.app";
+
+  // Función para crear una reunión
+  const createMeeting = async () => {
+    setCreatingMeeting(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${MIROTALK_BASE_URL}/api/v1/meeting`, {
+        method: "POST",
+        headers: {
+          authorization: API_KEY_SECRET,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        setError(data.error);
+        console.log("Error creando reunión:", data.error);
+      } else if (data.meeting) {
+        setMeetingUrl(data.meeting);
+        console.log("Reunión creada:", data.meeting);
+        // Abrir la reunión en una nueva pestaña
+        window.open(data.meeting, '_blank');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al crear la reunión";
+      setError(errorMessage);
+      console.error("Error creating meeting:", err);
+    } finally {
+      setCreatingMeeting(false);
+    }
+  };
+
+  // Función para obtener reuniones desde MiroTalk API
+  const getMeetingsFromAPI = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${MIROTALK_BASE_URL}/api/v1/meetings`, {
+        method: "GET",
+        headers: {
+          authorization: API_KEY_SECRET,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        setError(data.error);
+        console.log("Error:", data.error);
+      } else {
+        if (data && data.meetings) {
+          setApiMeetings(data.meetings);
+          console.log("Meetings loaded:", data.meetings);
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al cargar las reuniones";
+      setError(errorMessage);
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar reuniones al montar el componente
+  useEffect(() => {
+    getMeetingsFromAPI();
+  }, []);
 
   const meetings = [
     {
@@ -199,6 +289,88 @@ export default function MeetingsPage() {
             </div>
             <div className="text-6xl">💻</div>
           </div>
+        </div>
+
+        {/* MiroTalk API Meetings Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          {/* Crear Reunión */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">🎬 Crear Nueva Reunión</p>
+                <p className="text-sm text-gray-600">Inicia una videollamada instantánea con MiroTalk</p>
+              </div>
+              <button 
+                onClick={createMeeting}
+                disabled={creatingMeeting}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition disabled:opacity-50"
+              >
+                {creatingMeeting ? '⏳ Creando...' : '➕ Nueva Reunión'}
+              </button>
+            </div>
+            {meetingUrl && (
+              <div className="mt-4 p-3 bg-white rounded-lg border border-green-300">
+                <p className="text-sm text-gray-600 mb-1">🔗 Última reunión creada:</p>
+                <a 
+                  href={meetingUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline text-sm font-mono break-all"
+                >
+                  {meetingUrl}
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">🌐 Reuniones MiroTalk</h2>
+            <button 
+              onClick={getMeetingsFromAPI}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              {loading ? '⏳ Cargando...' : '🔄 Actualizar'}
+            </button>
+          </div>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+              ⚠️ {error}
+            </div>
+          )}
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin text-4xl mb-2">⏳</div>
+              <p className="text-gray-500">Cargando reuniones...</p>
+            </div>
+          ) : apiMeetings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {apiMeetings.map((meeting, index) => (
+                <div key={meeting.id || index} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">
+                  <h3 className="font-semibold text-gray-900 mb-2">{meeting.name || `Reunión ${index + 1}`}</h3>
+                  {meeting.room && (
+                    <p className="text-sm text-gray-600 mb-1">🔗 Sala: {meeting.room}</p>
+                  )}
+                  {meeting.date && (
+                    <p className="text-sm text-gray-600 mb-1">📅 {meeting.date}</p>
+                  )}
+                  {meeting.time && (
+                    <p className="text-sm text-gray-600 mb-1">🕐 {meeting.time}</p>
+                  )}
+                  <button className="mt-3 w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition">
+                    Unirse
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-2">📭</div>
+              <p>No hay reuniones activas en MiroTalk</p>
+            </div>
+          )}
         </div>
 
         {/* Stats */}

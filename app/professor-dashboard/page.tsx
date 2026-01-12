@@ -6,7 +6,7 @@ import { useState } from 'react';
 export default function ProfessorDashboardPage() {
   const [professor] = useState({
     name: 'Prof. María López',
-    email: 'maria.lopez@innova.edu',
+    email: 'maria.lopez@Innomatic.edu',
     avatar: 'ML',
     professorId: 'PROF-003'
   });
@@ -127,7 +127,7 @@ export default function ProfessorDashboardPage() {
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
                   <span className="text-purple-600 font-bold text-lg">I</span>
                 </div>
-                <span className="ml-3 text-xl font-bold text-white">Innova Intranet</span>
+                <span className="ml-3 text-xl font-bold text-white">Innomatic Intranet</span>
                 <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-white text-xs font-medium">
                   👨‍🏫 Profesor
                 </span>
