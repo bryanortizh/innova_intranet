@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret'
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'
+const JWT_SECRET: jwt.Secret = (process.env.JWT_SECRET || 'default_secret') as jwt.Secret
+const JWT_EXPIRES_IN: jwt.SignOptions['expiresIn'] = (process.env.JWT_EXPIRES_IN || '24h') as jwt.SignOptions['expiresIn']
 
 // Encriptar password
 export async function hashPassword(password: string): Promise<string> {
@@ -31,7 +31,7 @@ export function verifyToken(token: string): { userId: number; email: string; rol
 
 // Calcular fecha de expiración del token
 export function getTokenExpiration(): Date {
-  const expiresIn = JWT_EXPIRES_IN
+  const expiresIn = String(JWT_EXPIRES_IN ?? '24h')
   const match = expiresIn.match(/^(\d+)([smhd])$/)
   
   if (!match) {
