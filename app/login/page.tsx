@@ -4,24 +4,85 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-type UserRole = 'student' | 'professor';
+interface FieldError {
+  field: string;
+  message: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  errors?: FieldError[];
+  data?: {
+    user: {
+      id: number;
+      nombre: string;
+      apellido: string;
+      email: string;
+      rol: string;
+    };
+    token: string;
+    expiresAt: string;
+  };
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Lógica de login aquí
-    console.log('Login attempt:', { email, password, role: selectedRole });
-    
-    // Redirigir según el rol seleccionado
-    if (selectedRole === 'student') {
-      router.push('/dashboard');
-    } else {
-      router.push('/professor-dashboard');
+    setErrors({});
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data: LoginResponse = await response.json();
+
+      if (!data.success) {
+        // Manejar errores de validación
+        if (data.errors && data.errors.length > 0) {
+          const newErrors: { email?: string; password?: string } = {};
+          data.errors.forEach((err) => {
+            if (err.field === 'email') newErrors.email = err.message;
+            if (err.field === 'password') newErrors.password = err.message;
+          });
+          setErrors(newErrors);
+        } else {
+          // Error general (credenciales inválidas)
+          setErrors({ general: data.message || data.error || 'Error al iniciar sesión' });
+        }
+        return;
+      }
+
+      // Login exitoso - guardar token
+      if (data.data) {
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+
+        // Redirigir según el rol
+        if (data.data.user.rol === 'ALUMNO') {
+          router.push('/dashboard');
+        } else {
+          router.push('/professor-dashboard');
+        }
+      }
+    } catch (error) {
+      console.error('Error en login:', error);
+      setErrors({ general: 'Error de conexión. Intenta de nuevo.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -42,48 +103,17 @@ export default function LoginPage() {
             <p className="text-gray-500 mt-2">Ingresa a tu cuenta</p>
           </div>
 
-          {/* Role Selection */}
-          <div className="mb-6">
-            <p className="text-sm font-medium text-gray-700 mb-3 text-center">Selecciona tu rol</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedRole('student')}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  selectedRole === 'student'
-                    ? 'border-blue-600 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex flex-col items-center">
-                  <div className={`text-3xl mb-2 ${selectedRole === 'student' ? 'scale-110' : ''} transition-transform`}>
-                    👨‍🎓
-                  </div>
-                  <span className={`text-sm font-medium ${selectedRole === 'student' ? 'text-blue-600' : 'text-gray-600'}`}>
-                    Estudiante
-                  </span>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedRole('professor')}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  selectedRole === 'professor'
-                    ? 'border-purple-600 bg-purple-50 shadow-md'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex flex-col items-center">
-                  <div className={`text-3xl mb-2 ${selectedRole === 'professor' ? 'scale-110' : ''} transition-transform`}>
-                    👨‍🏫
-                  </div>
-                  <span className={`text-sm font-medium ${selectedRole === 'professor' ? 'text-purple-600' : 'text-gray-600'}`}>
-                    Profesor
-                  </span>
-                </div>
-              </button>
+          {/* Error general */}
+          {errors.general && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-red-700 text-sm">{errors.general}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -95,11 +125,25 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="estudiante@ejemplo.com"
-                required
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: undefined });
+                }}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent outline-none transition ${
+                  errors.email 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+                placeholder="correo@ejemplo.com"
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -110,11 +154,25 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors({ ...errors, password: undefined });
+                }}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent outline-none transition ${
+                  errors.password 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="••••••••"
-                required
               />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -129,13 +187,20 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className={`w-full text-white py-3 rounded-lg font-semibold transition duration-300 transform hover:scale-[1.02] active:scale-[0.98] ${
-                selectedRole === 'student'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
-              }`}
+              disabled={isLoading}
+              className={`w-full text-white py-3 rounded-lg font-semibold transition duration-300 transform hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none`}
             >
-              Iniciar Sesión como {selectedRole === 'student' ? 'Estudiante' : 'Profesor'}
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Iniciando sesión...
+                </span>
+              ) : (
+                'Iniciar Sesión'
+              )}
             </button>
           </form>
 
