@@ -9,29 +9,28 @@ export default function ProfessorDashboardPage() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [professor, setProfessor] = useState({
-    name: '',
-    email: '',
-    avatar: '',
-    professorId: ''
+  const [professor] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `Prof. ${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        professorId: `PROF-${String(userData.id).padStart(3, '0')}`
+      };
+    }
+    return {
+      name: '',
+      email: '',
+      avatar: '',
+      professorId: ''
+    };
   });
 
   useEffect(() => {
     // Verificar autenticación
     if (!isAuthenticated()) {
       router.push('/login');
-      return;
-    }
-
-    // Cargar datos del usuario
-    const userData = getUser();
-    if (userData) {
-      setProfessor({
-        name: `Prof. ${userData.nombre} ${userData.apellido}`,
-        email: userData.email,
-        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
-        professorId: `PROF-${String(userData.id).padStart(3, '0')}`
-      });
     }
   }, [router]);
 

@@ -1,10 +1,29 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+interface TokenUser {
+  id: number
+  nombre: string
+  apellido: string
+  email: string
+  rol: string
+}
+
+interface TokenRecord {
+  id: number
+  token: string
+  userId: number
+  user: TokenUser
+  isValid: boolean
+  expiresAt: Date
+  createdAt: Date
+  revokedAt: Date | null
+}
+
 // GET - Obtener todos los tokens (para administración)
 export async function GET() {
   try {
-    const tokens = await prisma.token.findMany({
+    const tokens: TokenRecord[] = await prisma.token.findMany({
       include: {
         user: {
           select: {
@@ -20,22 +39,14 @@ export async function GET() {
     })
 
     // Clasificar tokens
-    const activeTokens = tokens.filter(t => t.isValid && t.expiresAt > new Date())
-    const revokedTokens = tokens.filter(t => !t.isValid && t.revokedAt !== null)
-    const expiredTokens = tokens.filter(t => t.expiresAt <= new Date())
-
-    interface TokenUser {
-        id: string
-        nombre: string
-        apellido: string
-        email: string
-        rol: string
-    }
+    const activeTokens = tokens.filter((t: TokenRecord) => t.isValid && t.expiresAt > new Date())
+    const revokedTokens = tokens.filter((t: TokenRecord) => !t.isValid && t.revokedAt !== null)
+    const expiredTokens = tokens.filter((t: TokenRecord) => t.expiresAt <= new Date())
 
     interface TokenResponse {
-        id: string
+        id: number
         token: string
-        userId: string
+        userId: number
         user: TokenUser
         isValid: boolean
         expiresAt: Date
