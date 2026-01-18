@@ -1,0 +1,844 @@
+{
+  "info": {
+    "name": "Innova Intranet API",
+    "description": "Sistema de Intranet - API completa para gestión de profesores, estudiantes, cursos, tareas, exámenes y recursos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "innova-intranet"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan.perez@innova.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profesores",
+      "item": [
+        {
+          "name": "Listar Profesores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachers-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachers-intra"]
+            }
+          }
+        },
+        {
+          "name": "Crear Profesor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pedro\",\n  \"apellido\": \"Sánchez\",\n  \"email\": \"pedro.sanchez@innova.com\",\n  \"password\": \"password123\",\n  \"telefono\": \"+51 987654327\",\n  \"especialidad\": \"Inteligencia Artificial\",\n  \"fotoPerfil\": \"https://i.pravatar.cc/150?img=25\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachers-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachers-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Profesor por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachers-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachers-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Profesor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"+51 999888777\",\n  \"especialidad\": \"Cloud Computing\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachers-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachers-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Profesor",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachers-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachers-intra", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estudiantes",
+      "item": [
+        {
+          "name": "Listar Estudiantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra"]
+            }
+          }
+        },
+        {
+          "name": "Listar Estudiantes por Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students-intra?courseId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Estudiante",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Elena\",\n  \"apellido\": \"Torres\",\n  \"email\": \"elena.torres@innova.com\",\n  \"password\": \"password123\",\n  \"telefono\": \"+51 987654328\",\n  \"fotoPerfil\": \"https://i.pravatar.cc/150?img=35\",\n  \"courseId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estudiante por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Estudiante",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"+51 999777666\",\n  \"courseId\": 2,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Estudiante",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["students-intra", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cursos",
+      "item": [
+        {
+          "name": "Listar Cursos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra"]
+            }
+          }
+        },
+        {
+          "name": "Listar Cursos por Profesor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra?teacherId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra"],
+              "query": [
+                {
+                  "key": "teacherId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar Cursos Activos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra?estado=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra"],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Curso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"TypeScript Avanzado\",\n  \"descripcion\": \"Aprende TypeScript a nivel profesional\",\n  \"cover\": \"https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800\",\n  \"duracion\": 60,\n  \"teacherId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Curso por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Estudiantes del Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra/1/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra", "1", "students"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Curso",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"React y Next.js Completo\",\n  \"descripcion\": \"Curso actualizado con las últimas versiones\",\n  \"duracion\": 150,\n  \"estado\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Curso",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["courses-intra", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ciclos",
+      "item": [
+        {
+          "name": "Listar Ciclos del Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ciclos-intra?courseId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ciclos-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Ciclo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"titulo\": \"Testing con Jest\",\n  \"descripcion\": \"Aprende a crear tests unitarios y de integración\",\n  \"orden\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ciclos-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["ciclos-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Ciclo por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ciclos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ciclos-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Ciclo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Fundamentos de React 18\",\n  \"descripcion\": \"Actualizado con React 18\",\n  \"orden\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ciclos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ciclos-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Ciclo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ciclos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["ciclos-intra", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tareas",
+      "item": [
+        {
+          "name": "Listar Tareas del Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra?courseId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Tarea",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"titulo\": \"Crear aplicación CRUD con React\",\n  \"descripcion\": \"Desarrolla una aplicación completa con operaciones CRUD\",\n  \"fechaEntrega\": \"2026-02-25T23:59:59.000Z\",\n  \"puntos\": 40\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Tarea por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Tarea",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Crear componente de Todo List Avanzado\",\n  \"fechaEntrega\": \"2026-02-05T23:59:59.000Z\",\n  \"puntos\": 25\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Tarea",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Entregar Tarea (Estudiante)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"archivo\": \"https://github.com/estudiante/tarea-react\",\n  \"comentario\": \"Tarea completada con todas las funcionalidades solicitadas\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra/1/entregas",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra", "1", "entregas"]
+            }
+          }
+        },
+        {
+          "name": "Calificar Entrega (Profesor)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"calificacion\": 18\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tareas-intra/1/entregas",
+              "host": ["{{baseUrl}}"],
+              "path": ["tareas-intra", "1", "entregas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exámenes",
+      "item": [
+        {
+          "name": "Listar Exámenes del Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra?courseId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Examen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"titulo\": \"Examen Parcial 2: Next.js\",\n  \"descripcion\": \"Evaluación de Next.js y Server Components\",\n  \"fechaInicio\": \"2026-03-01T09:00:00.000Z\",\n  \"fechaFin\": \"2026-03-01T11:00:00.000Z\",\n  \"duracion\": 120,\n  \"puntos\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Examen por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Examen",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Examen Parcial: React Hooks\",\n  \"fechaInicio\": \"2026-02-22T09:00:00.000Z\",\n  \"duracion\": 150\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Examen",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Realizar Examen (Estudiante)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"respuestas\": {\n    \"pregunta1\": \"A\",\n    \"pregunta2\": \"C\",\n    \"pregunta3\": \"B\",\n    \"pregunta4\": \"D\"\n  },\n  \"calificacion\": 88\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra/1/realizados",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra", "1", "realizados"]
+            }
+          }
+        },
+        {
+          "name": "Calificar Examen (Profesor)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"calificacion\": 90\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/examenes-intra/1/realizados",
+              "host": ["{{baseUrl}}"],
+              "path": ["examenes-intra", "1", "realizados"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recursos",
+      "item": [
+        {
+          "name": "Listar Recursos del Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra?courseId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar Recursos por Tipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra?courseId=1&tipo=PDF",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1"
+                },
+                {
+                  "key": "tipo",
+                  "value": "PDF"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Recurso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"titulo\": \"Guía de TypeScript\",\n  \"descripcion\": \"Manual completo de TypeScript para principiantes\",\n  \"tipo\": \"PDF\",\n  \"url\": \"https://www.typescriptlang.org/docs/handbook/intro.html\",\n  \"orden\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Recurso por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Recurso",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Documentación oficial de React 18\",\n  \"descripcion\": \"Guía actualizada de React 18\",\n  \"orden\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Recurso",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recursos-intra/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["recursos-intra", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

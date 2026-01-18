@@ -33,9 +33,14 @@ model User {
   email     String   @unique @db.VarChar(255)
   password  String   @db.VarChar(255) // Almacenado encriptado con bcrypt
   rol       Role
+  isActive  Boolean  @default(true) // Estado de la cuenta (activo/inactivo)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tokens    Token[]
+  
+  // Relaciones con intranet
+  teacher   teachers_intra?
+  student   students_intra?
 
   @@map("users")
 }
@@ -52,4 +57,179 @@ model Token {
   revokedAt DateTime? // Fecha cuando se invalidó el token (logout)
 
   @@map("tokens")
+}
+
+// ==================== SISTEMA DE INTRANET ====================
+
+// Cursos de la intranet
+model courses_intra {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @db.VarChar(255)
+  descripcion String?   @db.Text
+  cover       String?   @db.VarChar(500)
+  duracion    Int?      // Duración en horas o semanas
+  estado      Boolean   @default(true) // Activo/Inactivo
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones
+  teacherId   Int?
+  teacher     teachers_intra?        @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  students    students_intra[]
+  ciclos      ciclos_intra[]
+  tareas      tareas_intra[]
+  examenes    examenes_intra[]
+  recursos    recursos_intra[]
+
+  @@index([teacherId])
+  @@map("courses_intra")
+}
+
+// Profesores de la intranet
+model teachers_intra {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @unique // Relación 1:1 con users
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telefono     String?   @db.VarChar(20)
+  especialidad String?   @db.VarChar(100)
+  fotoPerfil   String?   @db.VarChar(500)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relaciones - Un profesor puede estar asignado a múltiples cursos
+  courses      courses_intra[]
+
+  @@map("teachers_intra")
+}
+
+// Estudiantes de la intranet
+model students_intra {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique // Relación 1:1 con users
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telefono    String?   @db.VarChar(20)
+  fotoPerfil  String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relación muchos a muchos con cursos
+  courseId    Int
+  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  // Relaciones con contenido
+  tareasEntregadas   tareas_entregadas[]
+  examenesRealizados examenes_realizados[]
+
+  @@index([courseId])
+  @@index([userId])
+  @@map("students_intra")
+}
+
+// Ciclos del curso (módulos o unidades)
+model ciclos_intra {
+  id          Int       @id @default(autoincrement())
+  courseId    Int
+  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  titulo      String    @db.VarChar(255)
+  descripcion String?   @db.Text
+  orden       Int       // Orden del ciclo dentro del curso
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([courseId])
+  @@map("ciclos_intra")
+}
+
+// Tareas del curso
+model tareas_intra {
+  id           Int       @id @default(autoincrement())
+  courseId     Int
+  course       courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  titulo       String    @db.VarChar(255)
+  descripcion  String?   @db.Text
+  fechaEntrega DateTime?
+  puntos       Int?      // Puntaje máximo
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Entregas de estudiantes
+  entregas     tareas_entregadas[]
+
+  @@index([courseId])
+  @@map("tareas_intra")
+}
+
+// Entregas de tareas por estudiantes
+model tareas_entregadas {
+  id           Int       @id @default(autoincrement())
+  tareaId      Int
+  tarea        tareas_intra @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  studentId    Int
+  student      students_intra @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  archivo      String?   @db.VarChar(500)
+  comentario   String?   @db.Text
+  calificacion Int?      // Calificación obtenida
+  entregadoAt  DateTime  @default(now())
+  calificadoAt DateTime?
+
+  @@unique([tareaId, studentId])
+  @@index([tareaId])
+  @@index([studentId])
+  @@map("tareas_entregadas")
+}
+
+// Exámenes del curso
+model examenes_intra {
+  id          Int       @id @default(autoincrement())
+  courseId    Int
+  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  titulo      String    @db.VarChar(255)
+  descripcion String?   @db.Text
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  duracion    Int?      // Duración en minutos
+  puntos      Int?      // Puntaje máximo
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Exámenes realizados por estudiantes
+  realizados  examenes_realizados[]
+
+  @@index([courseId])
+  @@map("examenes_intra")
+}
+
+// Exámenes realizados por estudiantes
+model examenes_realizados {
+  id           Int       @id @default(autoincrement())
+  examenId     Int
+  examen       examenes_intra @relation(fields: [examenId], references: [id], onDelete: Cascade)
+  studentId    Int
+  student      students_intra @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  calificacion Int?      // Calificación obtenida
+  respuestas   String?   @db.Text // JSON con las respuestas
+  iniciadoAt   DateTime  @default(now())
+  finalizadoAt DateTime?
+
+  @@unique([examenId, studentId])
+  @@index([examenId])
+  @@index([studentId])
+  @@map("examenes_realizados")
+}
+
+// Recursos del curso (PDFs, videos, links, etc.)
+model recursos_intra {
+  id          Int       @id @default(autoincrement())
+  courseId    Int
+  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  titulo      String    @db.VarChar(255)
+  descripcion String?   @db.Text
+  tipo        String    @db.VarChar(50) // PDF, VIDEO, LINK, DOCUMENTO
+  url         String    @db.VarChar(500)
+  orden       Int?      // Orden dentro del curso
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([courseId])
+  @@map("recursos_intra")
 }
