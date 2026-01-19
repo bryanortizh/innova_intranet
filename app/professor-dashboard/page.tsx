@@ -4,11 +4,17 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser, logout, isAuthenticated } from '@/lib/services/authService';
+import { CourseService, TeacherService } from '@/lib/services';
+import type { courses_intra } from '@prisma/client';
 
 export default function ProfessorDashboardPage() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [myCourses, setMyCourses] = useState<any[]>([]);
+  const [teacherId, setTeacherId] = useState<number | null>(null);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [professor] = useState(() => {
     const userData = getUser();
     if (userData) {
@@ -16,14 +22,16 @@ export default function ProfessorDashboardPage() {
         name: `Prof. ${userData.nombre} ${userData.apellido}`,
         email: userData.email,
         avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
-        professorId: `PROF-${String(userData.id).padStart(3, '0')}`
+        professorId: `PROF-${String(userData.id).padStart(3, '0')}`,
+        userId: userData.id
       };
     }
     return {
       name: '',
       email: '',
       avatar: '',
-      professorId: ''
+      professorId: '',
+      userId: null
     };
   });
 
@@ -31,8 +39,58 @@ export default function ProfessorDashboardPage() {
     // Verificar autenticación
     if (!isAuthenticated()) {
       router.push('/login');
+      return;
     }
-  }, [router]);
+
+    // Cargar datos del profesor y sus cursos
+    const loadTeacherData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Obtener datos del profesor por userId
+        const teachers = await TeacherService.getAll();
+        const teacher = teachers.find((t: any) => t.userId === professor.userId);
+        
+        if (!teacher) {
+          console.error('No se encontró el profesor');
+          return;
+        }
+
+        setTeacherId(teacher.id);
+
+        // Obtener cursos del profesor
+        const courses = await CourseService.getByTeacher(teacher.id);
+        
+        // Calcular total de estudiantes y tareas pendientes
+        let studentsCount = 0;
+        const coursesWithData = await Promise.all(
+          courses.map(async (course: any) => {
+            const students = await CourseService.getStudents(course.id);
+            studentsCount += students.length;
+            
+            return {
+              id: course.id,
+              name: course.nombre,
+              code: course.codigo || `CURSO-${course.id}`,
+              students: students.length,
+              schedule: course.horario || 'Horario por definir',
+              pending: 0, // TODO: calcular tareas pendientes
+              color: ['purple', 'blue', 'green', 'indigo', 'pink'][course.id % 5]
+            };
+          })
+        );
+
+        setMyCourses(coursesWithData);
+        setTotalStudents(studentsCount);
+      } catch (error) {
+        console.error('Error cargando datos del profesor:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTeacherData();
+  }, [router, professor.userId]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -41,50 +99,13 @@ export default function ProfessorDashboardPage() {
   };
 
   const stats = [
-    { label: 'Mis Cursos', value: '4', icon: '📚', color: 'from-blue-500 to-blue-600' },
-    { label: 'Total Estudiantes', value: '142', icon: '👥', color: 'from-green-500 to-green-600' },
-    { label: 'Tareas Pendientes', value: '23', icon: '📝', color: 'from-orange-500 to-orange-600' },
-    { label: 'Reuniones Hoy', value: '3', icon: '📹', color: 'from-purple-500 to-purple-600' },
+    { label: 'Mis Cursos', value: myCourses.length.toString(), icon: '📚', color: 'from-blue-500 to-blue-600' },
+    { label: 'Total Estudiantes', value: totalStudents.toString(), icon: '👥', color: 'from-green-500 to-green-600' },
+    { label: 'Tareas Pendientes', value: '0', icon: '📝', color: 'from-orange-500 to-orange-600' },
+    { label: 'Reuniones Hoy', value: '0', icon: '📹', color: 'from-purple-500 to-purple-600' },
   ];
 
-  const myCourses = [
-    { 
-      id: 1, 
-      name: 'Programación Web Avanzada', 
-      code: 'INF-305', 
-      students: 35, 
-      schedule: 'Lun, Mié 16:00-18:00',
-      pending: 8,
-      color: 'purple' 
-    },
-    { 
-      id: 2, 
-      name: 'Desarrollo Mobile', 
-      code: 'INF-405', 
-      students: 28, 
-      schedule: 'Mar, Jue 14:00-16:00',
-      pending: 5,
-      color: 'blue' 
-    },
-    { 
-      id: 3, 
-      name: 'Bases de Datos', 
-      code: 'INF-201', 
-      students: 42, 
-      schedule: 'Vie 10:00-13:00',
-      pending: 7,
-      color: 'green' 
-    },
-    { 
-      id: 4, 
-      name: 'Arquitectura de Software', 
-      code: 'INF-502', 
-      students: 37, 
-      schedule: 'Lun, Mié 10:00-12:00',
-      pending: 3,
-      color: 'indigo' 
-    },
-  ];
+
 
   const recentActivity = [
     { 
@@ -157,7 +178,7 @@ export default function ProfessorDashboardPage() {
                   <span className="text-purple-600 font-bold text-lg">I</span>
                 </div>
                 <span className="ml-3 text-xl font-bold text-white">Innomatic Intranet</span>
-                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-white text-xs font-medium">
+                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-black text-xs font-medium">
                   👨‍🏫 Profesor
                 </span>
               </div>
@@ -282,7 +303,20 @@ export default function ProfessorDashboardPage() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {myCourses.map((course) => (
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <svg className="animate-spin h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                ) : myCourses.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-lg">📚</p>
+                    <p className="mt-2">No tienes cursos asignados</p>
+                  </div>
+                ) : (
+                  myCourses.map((course) => (
                   <div key={course.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
@@ -317,7 +351,8 @@ export default function ProfessorDashboardPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -373,16 +408,16 @@ export default function ProfessorDashboardPage() {
             <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl shadow-sm p-6 mt-6 text-white">
               <h3 className="text-lg font-bold mb-4">Acciones Rápidas</h3>
               <div className="space-y-2">
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white text-black bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
                   📝 Crear Nueva Tarea
                 </button>
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white text-black bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
                   📊 Registrar Calificaciones
                 </button>
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white text-black bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
                   📹 Programar Reunión
                 </button>
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white text-black bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
                   📢 Enviar Anuncio
                 </button>
               </div>

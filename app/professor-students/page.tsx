@@ -1,134 +1,195 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
+import { CourseService, TeacherService } from '@/lib/services';
 
 export default function ProfessorStudentsPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('all');
-
-  const students = [
-    {
-      id: 1,
-      name: 'Ana María Rodríguez',
-      studentId: '2024-001',
-      email: 'ana.rodriguez@estudiante.com',
-      course: 'INF-305',
-      courseName: 'Programación Web Avanzada',
-      grade: 18.5,
-      attendance: 98,
-      lastSubmission: '2026-01-11',
-      status: 'excellent',
-      avatar: 'AR'
-    },
-    {
-      id: 2,
-      name: 'Carlos Eduardo Pérez',
-      studentId: '2024-002',
-      email: 'carlos.perez@estudiante.com',
-      course: 'INF-405',
-      courseName: 'Desarrollo Mobile',
-      grade: 17.2,
-      attendance: 94,
-      lastSubmission: '2026-01-10',
-      status: 'good',
-      avatar: 'CP'
-    },
-    {
-      id: 3,
-      name: 'María Fernanda López',
-      studentId: '2024-003',
-      email: 'maria.lopez@estudiante.com',
-      course: 'INF-201',
-      courseName: 'Bases de Datos',
-      grade: 16.8,
-      attendance: 92,
-      lastSubmission: '2026-01-11',
-      status: 'good',
-      avatar: 'ML'
-    },
-    {
-      id: 4,
-      name: 'Juan Pablo Martínez',
-      studentId: '2024-004',
-      email: 'juan.martinez@estudiante.com',
-      course: 'INF-502',
-      courseName: 'Arquitectura de Software',
-      grade: 15.5,
-      attendance: 85,
-      lastSubmission: '2026-01-09',
-      status: 'warning',
-      avatar: 'JM'
-    },
-    {
-      id: 5,
-      name: 'Laura Isabel García',
-      studentId: '2024-005',
-      email: 'laura.garcia@estudiante.com',
-      course: 'INF-305',
-      courseName: 'Programación Web Avanzada',
-      grade: 17.9,
-      attendance: 96,
-      lastSubmission: '2026-01-11',
-      status: 'excellent',
-      avatar: 'LG'
-    },
-    {
-      id: 6,
-      name: 'Diego Alejandro Torres',
-      studentId: '2024-006',
-      email: 'diego.torres@estudiante.com',
-      course: 'INF-405',
-      courseName: 'Desarrollo Mobile',
-      grade: 16.2,
-      attendance: 88,
-      lastSubmission: '2026-01-10',
-      status: 'good',
-      avatar: 'DT'
-    },
-    {
-      id: 7,
-      name: 'Sofía Valentina Ruiz',
-      studentId: '2024-007',
-      email: 'sofia.ruiz@estudiante.com',
-      course: 'INF-201',
-      courseName: 'Bases de Datos',
-      grade: 14.8,
-      attendance: 78,
-      lastSubmission: '2026-01-08',
-      status: 'warning',
-      avatar: 'SR'
-    },
-    {
-      id: 8,
-      name: 'Andrés Felipe Castro',
-      studentId: '2024-008',
-      email: 'andres.castro@estudiante.com',
-      course: 'INF-502',
-      courseName: 'Arquitectura de Software',
-      grade: 17.5,
-      attendance: 93,
-      lastSubmission: '2026-01-11',
-      status: 'excellent',
-      avatar: 'AC'
+  const [isLoading, setIsLoading] = useState(true);
+  const [students, setStudents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([{ code: 'all', name: 'Todos los cursos' }]);
+  const [teacherCourses, setTeacherCourses] = useState<any[]>([]);
+  const [professor] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `Prof. ${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        professorId: `PROF-${String(userData.id).padStart(3, '0')}`,
+      };
     }
-  ];
+    return {
+      name: '',
+      email: '',
+      avatar: 'ML',
+      professorId: '',
+    };
+  });
 
-  const courses = [
-    { code: 'all', name: 'Todos los cursos' },
-    { code: 'INF-305', name: 'Programación Web Avanzada' },
-    { code: 'INF-405', name: 'Desarrollo Mobile' },
-    { code: 'INF-201', name: 'Bases de Datos' },
-    { code: 'INF-502', name: 'Arquitectura de Software' }
-  ];
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    const loadStudentsData = async () => {
+      try {
+        setIsLoading(true);
+        const userData = getUser();
+        
+        if (!userData) {
+          router.push('/login');
+          return;
+        }
+
+        // Obtener datos del profesor
+        const teachers = await TeacherService.getAll();
+        const teacher = teachers.find((t: any) => t.userId === userData.id);
+        
+        if (!teacher) {
+          console.error('No se encontró el profesor');
+          return;
+        }
+
+        // Obtener cursos del profesor
+        const courses = await CourseService.getByTeacher(teacher.id);
+        setTeacherCourses(courses);
+        
+        // Actualizar lista de cursos para el filtro
+        const coursesForFilter = [
+          { code: 'all', name: 'Todos los cursos', id: null },
+          ...courses.map((course: any) => ({
+            code: course.codigo || `CURSO-${course.id}`,
+            name: course.nombre,
+            id: course.id
+          }))
+        ];
+        setCourses(coursesForFilter);
+
+        // Cargar estudiantes de todos los cursos inicialmente
+        await loadStudentsForCourses(courses);
+      } catch (error) {
+        console.error('Error cargando estudiantes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStudentsData();
+  }, [router]);
+
+  // Función para cargar estudiantes de cursos específicos
+  const loadStudentsForCourses = async (coursesToLoad: any[]) => {
+    try {
+      const allStudents: any[] = [];
+      
+      for (const course of coursesToLoad) {
+        const courseStudents = await CourseService.getStudents(course.id);
+        
+        courseStudents.forEach((student: any) => {
+          const studentKey = `${student.id}-${course.id}`;
+          
+          allStudents.push({
+            id: student.id,
+            uniqueKey: studentKey,
+            name: `${student.user.nombre} ${student.user.apellido}`,
+            studentId: `EST-${String(student.id).padStart(3, '0')}`,
+            email: student.user.email,
+            course: course.codigo || `CURSO-${course.id}`,
+            courseName: course.nombre,
+            courseId: course.id,
+            grade: 0, // TODO: calcular promedio real
+            attendance: 0, // TODO: calcular asistencia real
+            lastSubmission: '-',
+            status: 'good',
+            avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
+          });
+        });
+      }
+
+      setStudents(allStudents);
+    } catch (error) {
+      console.error('Error cargando estudiantes:', error);
+    }
+  };
+
+  // Manejar cambio de curso en el select
+  const handleCourseChange = async (courseCode: string) => {
+    setSelectedCourse(courseCode);
+    setIsLoading(true);
+
+    try {
+      if (courseCode === 'all') {
+        // Cargar estudiantes de todos los cursos
+        await loadStudentsForCourses(teacherCourses);
+      } else {
+        // Cargar estudiantes solo del curso seleccionado
+        const selectedCourseData = courses.find(c => c.code === courseCode);
+        if (selectedCourseData && selectedCourseData.id) {
+          const courseStudents = await CourseService.getStudents(selectedCourseData.id);
+          
+          const studentsData = courseStudents.map((student: any) => ({
+            id: student.id,
+            uniqueKey: `${student.id}-${selectedCourseData.id}`,
+            name: `${student.user.nombre} ${student.user.apellido}`,
+            studentId: `EST-${String(student.id).padStart(3, '0')}`,
+            email: student.user.email,
+            course: selectedCourseData.code,
+            courseName: selectedCourseData.name,
+            courseId: selectedCourseData.id,
+            grade: 0,
+            attendance: 0,
+            lastSubmission: '-',
+            status: 'good',
+            avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
+          }));
+          
+          setStudents(studentsData);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cambiar curso:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.push('/login');
+  };
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.studentId.includes(searchTerm) ||
                          student.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCourse = selectedCourse === 'all' || student.course === selectedCourse;
-    return matchesSearch && matchesCourse;
+    // Ya no filtramos por curso aquí porque se hace en el backend
+    return matchesSearch;
   });
+
+  // Contar estudiantes únicos (sin duplicados)
+  const uniqueStudentIds = new Set(students.map(s => s.id));
+  const uniqueStudentCount = uniqueStudentIds.size;
+  
+  // Calcular estadísticas únicas
+  const uniqueStudents = Array.from(uniqueStudentIds).map(id => {
+    return students.find(s => s.id === id);
+  }).filter(Boolean);
+
+  const excellentCount = uniqueStudents.filter(s => s.status === 'excellent').length;
+  const warningCount = uniqueStudents.filter(s => s.status === 'warning').length;
+  const avgGrade = uniqueStudents.length > 0 
+    ? (uniqueStudents.reduce((acc, s) => acc + s.grade, 0) / uniqueStudents.length).toFixed(1)
+    : '0.0';
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -155,7 +216,7 @@ export default function ProfessorStudentsPage() {
                   <span className="text-purple-600 font-bold text-lg">I</span>
                 </div>
                 <span className="ml-3 text-xl font-bold text-white">Innomatic Intranet</span>
-                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-white text-xs font-medium">
+                <span className="ml-3 px-3 py-1 bg-white text-black bg-opacity-20 rounded-full text-xs font-medium">
                   👨‍🏫 Profesor
                 </span>
               </div>
@@ -177,10 +238,60 @@ export default function ProfessorStudentsPage() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
-                ML
-              </div>
+            <div className="ml-4 flex items-center relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center focus:outline-none"
+              >
+                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
+                  {professor.avatar}
+                </div>
+                <div className="ml-3 hidden lg:block text-left">
+                  <p className="text-sm font-medium text-white">{professor.name}</p>
+                  <p className="text-xs text-purple-100">{professor.professorId}</p>
+                </div>
+                <svg className="ml-2 w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{professor.name}</p>
+                    <p className="text-xs text-gray-500">{professor.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Mi Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Cerrando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar Sesión
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -200,7 +311,9 @@ export default function ProfessorStudentsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Estudiantes</p>
-                <p className="text-3xl font-bold text-gray-900">{students.length}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {isLoading ? '...' : uniqueStudentCount}
+                </p>
               </div>
               <div className="text-4xl">👥</div>
             </div>
@@ -211,7 +324,7 @@ export default function ProfessorStudentsPage() {
               <div>
                 <p className="text-sm text-green-700 mb-1">Rendimiento Excelente</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {students.filter(s => s.status === 'excellent').length}
+                  {isLoading ? '...' : excellentCount}
                 </p>
               </div>
               <div className="text-4xl">⭐</div>
@@ -223,7 +336,7 @@ export default function ProfessorStudentsPage() {
               <div>
                 <p className="text-sm text-yellow-700 mb-1">Requieren Atención</p>
                 <p className="text-3xl font-bold text-yellow-600">
-                  {students.filter(s => s.status === 'warning').length}
+                  {isLoading ? '...' : warningCount}
                 </p>
               </div>
               <div className="text-4xl">⚠️</div>
@@ -235,7 +348,7 @@ export default function ProfessorStudentsPage() {
               <div>
                 <p className="text-sm text-purple-700 mb-1">Promedio General</p>
                 <p className="text-3xl font-bold text-purple-600">
-                  {(students.reduce((acc, s) => acc + s.grade, 0) / students.length).toFixed(1)}
+                  {isLoading ? '...' : avgGrade}
                 </p>
               </div>
               <div className="text-4xl">📊</div>
@@ -263,8 +376,9 @@ export default function ProfessorStudentsPage() {
             <div className="md:w-64">
               <select
                 value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                onChange={(e) => handleCourseChange(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {courses.map(course => (
                   <option key={course.code} value={course.code}>{course.name}</option>
@@ -278,6 +392,26 @@ export default function ProfessorStudentsPage() {
         </div>
 
         {/* Students Table */}
+        {isLoading ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <svg className="animate-spin h-12 w-12 text-purple-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Cargando estudiantes...</p>
+          </div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron estudiantes</h3>
+            <p className="text-gray-500">
+              {students.length === 0 
+                ? 'No tienes estudiantes asignados en tus cursos'
+                : 'Intenta con otros términos de búsqueda o filtros'
+              }
+            </p>
+          </div>
+        ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -294,7 +428,7 @@ export default function ProfessorStudentsPage() {
               </thead>
               <tbody>
                 {filteredStudents.map((student) => (
-                  <tr key={student.id} className="border-b hover:bg-gray-50 transition">
+                  <tr key={student.uniqueKey || student.id} className="border-b hover:bg-gray-50 transition">
                     <td className="py-4 px-6">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
@@ -356,14 +490,6 @@ export default function ProfessorStudentsPage() {
             </table>
           </div>
         </div>
-
-        {/* Empty State */}
-        {filteredStudents.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron estudiantes</h3>
-            <p className="text-gray-500">Intenta con otros términos de búsqueda o filtros</p>
-          </div>
         )}
       </main>
     </div>

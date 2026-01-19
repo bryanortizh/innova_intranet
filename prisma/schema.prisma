@@ -80,6 +80,7 @@ model courses_intra {
   tareas      tareas_intra[]
   examenes    examenes_intra[]
   recursos    recursos_intra[]
+  horarios    horarios_intra[]
 
   @@index([teacherId])
   @@map("courses_intra")
@@ -135,6 +136,9 @@ model ciclos_intra {
   orden       Int       // Orden del ciclo dentro del curso
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // Relación con horarios
+  horarios    horarios_intra[]
 
   @@index([courseId])
   @@map("ciclos_intra")
@@ -232,4 +236,24 @@ model recursos_intra {
 
   @@index([courseId])
   @@map("recursos_intra")
+}
+
+// Horarios de clases
+model horarios_intra {
+  id         Int       @id @default(autoincrement())
+  courseId   Int
+  course     courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  cicloId    Int?
+  ciclo      ciclos_intra? @relation(fields: [cicloId], references: [id], onDelete: SetNull)
+  diaSemana  String    @db.VarChar(20) // LUNES, MARTES, MIERCOLES, JUEVES, VIERNES, SABADO, DOMINGO
+  horaInicio String    @db.VarChar(10) // Formato HH:MM (ej: "08:00")
+  horaFin    String    @db.VarChar(10) // Formato HH:MM (ej: "10:00")
+  aula       String?   @db.VarChar(100) // Salón o aula virtual
+  modalidad  String?   @db.VarChar(50) // PRESENCIAL, VIRTUAL, HIBRIDO
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([courseId])
+  @@index([cicloId])
+  @@map("horarios_intra")
 }

@@ -1,109 +1,130 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
+import { StudentService, TareaService } from '@/lib/services';
 
 export default function TasksPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
-
-  const tasks = [
-    {
-      id: 1,
-      title: 'Ensayo sobre el Siglo de Oro',
-      course: 'Literatura Española',
-      courseCode: 'LIT-201',
-      description: 'Escribir un ensayo de 1500 palabras sobre las características principales del Siglo de Oro español',
-      dueDate: '2026-01-15',
-      status: 'pending',
-      priority: 'high',
-      points: 20,
-      color: 'pink'
-    },
-    {
-      id: 2,
-      title: 'Laboratorio de Ondas',
-      course: 'Física Cuántica',
-      courseCode: 'FIS-402',
-      description: 'Completar el laboratorio sobre el comportamiento ondulatorio de partículas',
-      dueDate: '2026-01-16',
-      status: 'in-progress',
-      priority: 'medium',
-      points: 15,
-      color: 'green'
-    },
-    {
-      id: 3,
-      title: 'Proyecto Final React',
-      course: 'Programación Web',
-      courseCode: 'INF-305',
-      description: 'Desarrollar una aplicación web completa usando React y Next.js con autenticación y base de datos',
-      dueDate: '2026-01-18',
-      status: 'in-progress',
-      priority: 'high',
-      points: 30,
-      color: 'purple'
-    },
-    {
-      id: 4,
-      title: 'Ejercicios de Cálculo Integral',
-      course: 'Matemáticas Avanzadas',
-      courseCode: 'MAT-301',
-      description: 'Resolver los ejercicios 15-30 del capítulo 8 sobre integrales múltiples',
-      dueDate: '2026-01-17',
-      status: 'pending',
-      priority: 'medium',
-      points: 10,
-      color: 'blue'
-    },
-    {
-      id: 5,
-      title: 'Informe de Reacciones Orgánicas',
-      course: 'Química Orgánica',
-      courseCode: 'QUI-303',
-      description: 'Redactar informe del experimento de síntesis de ésteres en laboratorio',
-      dueDate: '2026-01-19',
-      status: 'pending',
-      priority: 'low',
-      points: 12,
-      color: 'yellow'
-    },
-    {
-      id: 6,
-      title: 'Presentación: Segunda Guerra Mundial',
-      course: 'Historia Universal',
-      courseCode: 'HIS-202',
-      description: 'Preparar presentación de 15 minutos sobre las causas de la Segunda Guerra Mundial',
-      dueDate: '2026-01-14',
-      status: 'completed',
-      priority: 'high',
-      points: 18,
-      color: 'indigo'
-    },
-    {
-      id: 7,
-      title: 'Quiz Teórico de Programación',
-      course: 'Programación Web',
-      courseCode: 'INF-305',
-      description: 'Estudiar conceptos de JavaScript, hooks de React y Next.js para el quiz',
-      dueDate: '2026-01-13',
-      status: 'completed',
-      priority: 'medium',
-      points: 8,
-      color: 'purple'
-    },
-    {
-      id: 8,
-      title: 'Tarea de Vectores',
-      course: 'Matemáticas Avanzadas',
-      courseCode: 'MAT-301',
-      description: 'Resolver problemas de espacios vectoriales y transformaciones lineales',
-      dueDate: '2026-01-20',
-      status: 'pending',
-      priority: 'low',
-      points: 10,
-      color: 'blue'
+  const [isLoading, setIsLoading] = useState(true);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [student] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        studentId: `EST-${String(userData.id).padStart(3, '0')}`,
+      };
     }
-  ];
+    return {
+      name: '',
+      email: '',
+      avatar: 'JP',
+      studentId: '',
+    };
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    const loadTasksData = async () => {
+      try {
+        setIsLoading(true);
+        const userData = getUser();
+        
+        if (!userData) {
+          router.push('/login');
+          return;
+        }
+
+        // Obtener datos del estudiante
+        const students = await StudentService.getAll();
+        const currentStudent = students.find((s: any) => s.userId === userData.id);
+        
+        if (!currentStudent) {
+          console.error('No se encontró el estudiante');
+          return;
+        }
+
+        const courseData = currentStudent.course;
+        
+        // Obtener todas las tareas del curso
+        const allTareas = await TareaService.getAll();
+        const courseTareas = allTareas.filter((t: any) => t.courseId === courseData.id);
+        
+        // Obtener estado de entrega para cada tarea
+        const tareasWithStatus = await Promise.all(
+          courseTareas.map(async (tarea: any) => {
+            try {
+              const entregas = await TareaService.getEntregas(tarea.id);
+              const myDelivery = entregas.find((e: any) => e.studentId === currentStudent.id);
+              
+              // Calcular días restantes
+              const today = new Date();
+              const dueDate = new Date(tarea.fechaEntrega);
+              const daysRemaining = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              
+              let status = 'pending';
+              if (myDelivery) {
+                status = myDelivery.calificacion !== null ? 'completed' : 'in-progress';
+              }
+              
+              // Determinar prioridad basada en días restantes
+              let priority = 'low';
+              if (daysRemaining < 0 && status !== 'completed') {
+                priority = 'high';
+              } else if (daysRemaining <= 2 && status !== 'completed') {
+                priority = 'high';
+              } else if (daysRemaining <= 5 && status !== 'completed') {
+                priority = 'medium';
+              }
+              
+              return {
+                id: tarea.id,
+                title: tarea.titulo,
+                course: courseData.nombre,
+                courseCode: `CURSO-${courseData.id}`,
+                description: tarea.descripcion || 'Sin descripción',
+                dueDate: new Date(tarea.fechaEntrega).toISOString().split('T')[0],
+                status: status,
+                priority: priority,
+                points: 20, // TODO: obtener puntos reales
+                color: 'blue',
+                delivery: myDelivery
+              };
+            } catch (error) {
+              console.error('Error procesando tarea:', error);
+              return null;
+            }
+          })
+        );
+
+        setTasks(tareasWithStatus.filter(Boolean));
+      } catch (error) {
+        console.error('Error cargando tareas:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTasksData();
+  }, [router]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.push('/login');
+  };
 
   const filteredTasks = tasks.filter(task => {
     if (selectedFilter === 'all') return true;
@@ -137,7 +158,7 @@ export default function TasksPage() {
   };
 
   const getDaysRemaining = (dueDate: string) => {
-    const today = new Date('2026-01-11');
+    const today = new Date();
     const due = new Date(dueDate);
     const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
@@ -181,10 +202,60 @@ export default function TasksPage() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                JP
-              </div>
+            <div className="ml-4 flex items-center relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center focus:outline-none"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {student.avatar}
+                </div>
+                <div className="ml-3 hidden lg:block text-left">
+                  <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                  <p className="text-xs text-gray-500">{student.studentId}</p>
+                </div>
+                <svg className="ml-2 w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                    <p className="text-xs text-gray-500">{student.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Mi Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Cerrando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar Sesión
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -293,6 +364,28 @@ export default function TasksPage() {
         </div>
 
         {/* Tasks List */}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <div className="text-center">
+              <svg className="animate-spin h-12 w-12 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-600">Cargando tus tareas...</p>
+            </div>
+          </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="text-6xl mb-4">📭</div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No hay tareas</h3>
+            <p className="text-gray-500">
+              {selectedFilter === 'all'
+                ? 'No tienes tareas asignadas en este momento'
+                : `No tienes tareas en estado "${selectedFilter}"`
+              }
+            </p>
+          </div>
+        ) : (
         <div className="space-y-4">
           {filteredTasks.map((task) => {
             const daysRemaining = getDaysRemaining(task.dueDate);
@@ -393,19 +486,6 @@ export default function TasksPage() {
             );
           })}
         </div>
-
-        {/* Empty State */}
-        {filteredTasks.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No hay tareas</h3>
-            <p className="text-gray-500">
-              {selectedFilter === 'all'
-                ? 'No tienes tareas asignadas en este momento'
-                : `No tienes tareas en estado "${selectedFilter}"`
-              }
-            </p>
-          </div>
         )}
       </main>
     </div>

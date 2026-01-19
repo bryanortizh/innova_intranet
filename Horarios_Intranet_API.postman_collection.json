@@ -1,0 +1,580 @@
+{
+  "info": {
+    "name": "Horarios Intranet API",
+    "_postman_id": "horarios-intra-api-collection",
+    "description": "Colección de endpoints para gestionar horarios de cursos en la intranet",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Horarios",
+      "item": [
+        {
+          "name": "Obtener todos los horarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            },
+            "description": "Obtiene todos los horarios disponibles. Requiere autenticación."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener horarios por curso",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra?courseId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1",
+                  "description": "ID del curso"
+                }
+              ]
+            },
+            "description": "Obtiene todos los horarios de un curso específico."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener horarios por ciclo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra?cicloId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"],
+              "query": [
+                {
+                  "key": "cicloId",
+                  "value": "1",
+                  "description": "ID del ciclo"
+                }
+              ]
+            },
+            "description": "Obtiene todos los horarios de un ciclo específico."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener horarios por curso y ciclo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra?courseId=1&cicloId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "1",
+                  "description": "ID del curso"
+                },
+                {
+                  "key": "cicloId",
+                  "value": "1",
+                  "description": "ID del ciclo"
+                }
+              ]
+            },
+            "description": "Obtiene horarios filtrados por curso y ciclo."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener horario por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Obtiene un horario específico por su ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario presencial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 1,\n  \"diaSemana\": \"LUNES\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"10:00\",\n  \"aula\": \"Aula 301\",\n  \"modalidad\": \"PRESENCIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            },
+            "description": "Crea un nuevo horario presencial. Solo profesores pueden crear horarios."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario virtual",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"diaSemana\": \"MARTES\",\n  \"horaInicio\": \"14:00\",\n  \"horaFin\": \"16:00\",\n  \"aula\": \"Sala Virtual 1\",\n  \"modalidad\": \"VIRTUAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            },
+            "description": "Crea un horario virtual (sin ciclo asignado)."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario híbrido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 2,\n  \"diaSemana\": \"MIERCOLES\",\n  \"horaInicio\": \"10:00\",\n  \"horaFin\": \"12:00\",\n  \"aula\": \"Aula 205 / Zoom\",\n  \"modalidad\": \"HIBRIDO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            },
+            "description": "Crea un horario híbrido (presencial y virtual)."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario completo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 1,\n  \"diaSemana\": \"JUEVES\",\n  \"horaInicio\": \"16:00\",\n  \"horaFin\": \"18:00\",\n  \"aula\": \"Laboratorio 102\",\n  \"modalidad\": \"PRESENCIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            },
+            "description": "Ejemplo completo de creación de horario con todos los campos."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar horario - Cambiar hora",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"horaInicio\": \"09:00\",\n  \"horaFin\": \"11:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Actualiza la hora de inicio y fin de un horario."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar horario - Cambiar aula",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aula\": \"Aula 405\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Actualiza solo el aula de un horario."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar horario - Cambiar modalidad",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"VIRTUAL\",\n  \"aula\": \"Google Meet - Sala A\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Cambia un horario de presencial a virtual."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar horario - Cambiar día",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diaSemana\": \"VIERNES\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Cambia el día de la semana del horario."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar horario completo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diaSemana\": \"SABADO\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"12:00\",\n  \"aula\": \"Auditorio Principal\",\n  \"modalidad\": \"PRESENCIAL\",\n  \"cicloId\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Actualiza todos los campos de un horario."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar horario",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra", "1"]
+            },
+            "description": "Elimina un horario por su ID. Solo profesores pueden eliminar."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gestionar horarios de clases"
+    },
+    {
+      "name": "Ejemplos de horarios completos",
+      "item": [
+        {
+          "name": "Crear horario de Lunes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 1,\n  \"diaSemana\": \"LUNES\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"10:00\",\n  \"aula\": \"Aula 301\",\n  \"modalidad\": \"PRESENCIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario de Martes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 1,\n  \"diaSemana\": \"MARTES\",\n  \"horaInicio\": \"14:00\",\n  \"horaFin\": \"16:00\",\n  \"aula\": \"Laboratorio 205\",\n  \"modalidad\": \"PRESENCIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario de Miércoles (Virtual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 2,\n  \"diaSemana\": \"MIERCOLES\",\n  \"horaInicio\": \"10:00\",\n  \"horaFin\": \"12:00\",\n  \"aula\": \"Google Meet - Sala Virtual A\",\n  \"modalidad\": \"VIRTUAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario de Jueves",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 2,\n  \"diaSemana\": \"JUEVES\",\n  \"horaInicio\": \"16:00\",\n  \"horaFin\": \"18:00\",\n  \"aula\": \"Aula 102\",\n  \"modalidad\": \"PRESENCIAL\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear horario de Viernes (Híbrido)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": 1,\n  \"cicloId\": 3,\n  \"diaSemana\": \"VIERNES\",\n  \"horaInicio\": \"09:00\",\n  \"horaFin\": \"11:00\",\n  \"aula\": \"Aula 401 + Zoom\",\n  \"modalidad\": \"HIBRIDO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios-intra",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios-intra"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

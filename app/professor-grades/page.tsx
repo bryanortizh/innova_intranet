@@ -1,11 +1,45 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
 
 export default function ProfessorGradesPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState('INF-305');
   const [selectedEvaluation, setSelectedEvaluation] = useState('all');
+  const [professor] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `Prof. ${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        professorId: `PROF-${String(userData.id).padStart(3, '0')}`,
+      };
+    }
+    return {
+      name: '',
+      email: '',
+      avatar: 'ML',
+      professorId: '',
+    };
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.push('/login');
+  };
 
   const courses = [
     { code: 'INF-305', name: 'Programación Web Avanzada' },
@@ -114,7 +148,7 @@ export default function ProfessorGradesPage() {
                   <span className="text-purple-600 font-bold text-lg">I</span>
                 </div>
                 <span className="ml-3 text-xl font-bold text-white">Innomatic Intranet</span>
-                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-white text-xs font-medium">
+                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-black text-xs font-medium">
                   👨‍🏫 Profesor
                 </span>
               </div>
@@ -136,10 +170,60 @@ export default function ProfessorGradesPage() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
-                ML
-              </div>
+            <div className="ml-4 flex items-center relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center focus:outline-none"
+              >
+                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
+                  {professor.avatar}
+                </div>
+                <div className="ml-3 hidden lg:block text-left">
+                  <p className="text-sm font-medium text-white">{professor.name}</p>
+                  <p className="text-xs text-purple-100">{professor.professorId}</p>
+                </div>
+                <svg className="ml-2 w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{professor.name}</p>
+                    <p className="text-xs text-gray-500">{professor.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Mi Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Cerrando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar Sesión
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,69 +1,106 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
+import { CourseService, TeacherService } from '@/lib/services';
 
 export default function ProfessorCoursesPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
-
-  const courses = [
-    {
-      id: 1,
-      name: 'Programación Web Avanzada',
-      code: 'INF-305',
-      semester: '2026-1',
-      schedule: 'Lun, Mié 16:00-18:00',
-      students: 35,
-      pendingTasks: 8,
-      averageGrade: 17.2,
-      attendance: 92,
-      color: 'purple',
-      room: 'Lab 301',
-      description: 'Desarrollo web moderno con React, Next.js y tecnologías actuales'
-    },
-    {
-      id: 2,
-      name: 'Desarrollo Mobile',
-      code: 'INF-405',
-      semester: '2026-1',
-      schedule: 'Mar, Jue 14:00-16:00',
-      students: 28,
-      pendingTasks: 5,
-      averageGrade: 16.5,
-      attendance: 88,
-      color: 'blue',
-      room: 'Lab 205',
-      description: 'Desarrollo de aplicaciones móviles con React Native y Flutter'
-    },
-    {
-      id: 3,
-      name: 'Bases de Datos',
-      code: 'INF-201',
-      semester: '2026-1',
-      schedule: 'Vie 10:00-13:00',
-      students: 42,
-      pendingTasks: 7,
-      averageGrade: 15.8,
-      attendance: 85,
-      color: 'green',
-      room: 'Aula 102',
-      description: 'Diseño, implementación y administración de bases de datos relacionales'
-    },
-    {
-      id: 4,
-      name: 'Arquitectura de Software',
-      code: 'INF-502',
-      semester: '2026-1',
-      schedule: 'Lun, Mié 10:00-12:00',
-      students: 37,
-      pendingTasks: 3,
-      averageGrade: 16.9,
-      attendance: 94,
-      color: 'indigo',
-      room: 'Aula 501',
-      description: 'Patrones de diseño y arquitecturas de software empresarial'
+  const [isLoading, setIsLoading] = useState(true);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [teacherId, setTeacherId] = useState<number | null>(null);
+  const [professor] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `Prof. ${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        professorId: `PROF-${String(userData.id).padStart(3, '0')}`,
+      };
     }
-  ];
+    return {
+      name: '',
+      email: '',
+      avatar: 'ML',
+      professorId: '',
+    };
+  });
+
+  useEffect(() => {
+    // Verificar autenticación
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    const loadCourses = async () => {
+      try {
+        setIsLoading(true);
+        const userData = getUser();
+        
+        if (!userData) {
+          router.push('/login');
+          return;
+        }
+
+        // Obtener datos del profesor
+        const teachers = await TeacherService.getAll();
+        const teacher = teachers.find((t: any) => t.userId === userData.id);
+        
+        if (!teacher) {
+          console.error('No se encontró el profesor');
+          return;
+        }
+
+        setTeacherId(teacher.id);
+
+        // Obtener cursos del profesor
+        const teacherCourses = await CourseService.getByTeacher(teacher.id);
+        
+        // Obtener estudiantes de cada curso
+        const coursesWithData = await Promise.all(
+          teacherCourses.map(async (course: any) => {
+            const students = await CourseService.getStudents(course.id);
+            
+            return {
+              id: course.id,
+              name: course.nombre,
+              code: course.codigo || `CURSO-${course.id}`,
+              semester: '2026-1',
+              schedule: course.horario || 'Horario por definir',
+              students: students.length,
+              pendingTasks: 0, // TODO: calcular tareas pendientes
+              averageGrade: 0, // TODO: calcular promedio de notas
+              attendance: 0, // TODO: calcular asistencia
+              color: ['purple', 'blue', 'green', 'indigo', 'pink'][course.id % 5],
+              room: course.aula || 'Por asignar',
+              description: course.descripcion || 'Sin descripción'
+            };
+          })
+        );
+
+        setCourses(coursesWithData);
+      } catch (error) {
+        console.error('Error cargando cursos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCourses();
+  }, [router]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.push('/login');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,7 +114,7 @@ export default function ProfessorCoursesPage() {
                   <span className="text-purple-600 font-bold text-lg">I</span>
                 </div>
                 <span className="ml-3 text-xl font-bold text-white">Innomatic Intranet</span>
-                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-white text-xs font-medium">
+                <span className="ml-3 px-3 py-1 bg-white bg-opacity-20 rounded-full text-black text-xs font-medium">
                   👨‍🏫 Profesor
                 </span>
               </div>
@@ -99,10 +136,60 @@ export default function ProfessorCoursesPage() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
-                ML
-              </div>
+            <div className="ml-4 flex items-center relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center focus:outline-none"
+              >
+                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
+                  {professor.avatar}
+                </div>
+                <div className="ml-3 hidden lg:block text-left">
+                  <p className="text-sm font-medium text-white">{professor.name}</p>
+                  <p className="text-xs text-purple-100">{professor.professorId}</p>
+                </div>
+                <svg className="ml-2 w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{professor.name}</p>
+                    <p className="text-xs text-gray-500">{professor.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Mi Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Cerrando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar Sesión
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -122,7 +209,9 @@ export default function ProfessorCoursesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Cursos</p>
-                <p className="text-3xl font-bold text-gray-900">{courses.length}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {isLoading ? '...' : courses.length}
+                </p>
               </div>
               <div className="text-4xl">📚</div>
             </div>
@@ -132,7 +221,9 @@ export default function ProfessorCoursesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-purple-700 mb-1">Total Estudiantes</p>
-                <p className="text-3xl font-bold text-purple-600">{courses.reduce((acc, c) => acc + c.students, 0)}</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {isLoading ? '...' : courses.reduce((acc, c) => acc + c.students, 0)}
+                </p>
               </div>
               <div className="text-4xl">👥</div>
             </div>
@@ -142,7 +233,9 @@ export default function ProfessorCoursesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-orange-700 mb-1">Tareas Pendientes</p>
-                <p className="text-3xl font-bold text-orange-600">{courses.reduce((acc, c) => acc + c.pendingTasks, 0)}</p>
+                <p className="text-3xl font-bold text-orange-600">
+                  {isLoading ? '...' : courses.reduce((acc, c) => acc + c.pendingTasks, 0)}
+                </p>
               </div>
               <div className="text-4xl">📝</div>
             </div>
@@ -153,7 +246,7 @@ export default function ProfessorCoursesPage() {
               <div>
                 <p className="text-sm text-green-700 mb-1">Promedio General</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {(courses.reduce((acc, c) => acc + c.averageGrade, 0) / courses.length).toFixed(1)}
+                  {isLoading ? '...' : courses.length > 0 ? (courses.reduce((acc, c) => acc + c.averageGrade, 0) / courses.length).toFixed(1) : '0.0'}
                 </p>
               </div>
               <div className="text-4xl">⭐</div>
@@ -203,6 +296,26 @@ export default function ProfessorCoursesPage() {
         </div>
 
         {/* Courses Grid */}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <div className="text-center">
+              <svg className="animate-spin h-12 w-12 text-purple-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-600">Cargando cursos...</p>
+            </div>
+          </div>
+        ) : courses.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="text-6xl mb-4">📚</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tienes cursos asignados</h3>
+            <p className="text-gray-600 mb-6">Cuando te asignen cursos, aparecerán aquí</p>
+            <button className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition">
+              Contactar administración
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {courses.map((course) => (
             <div key={course.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden">
@@ -211,7 +324,7 @@ export default function ProfessorCoursesPage() {
                 <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition"></div>
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-2">
-                    <span className="inline-block px-3 py-1 bg-white bg-opacity-30 backdrop-blur-sm rounded-full text-white text-xs font-medium">
+                    <span className="inline-block px-3 py-1 bg-white text-black bg-opacity-30 backdrop-blur-sm rounded-full  text-xs font-medium">
                       {course.code}
                     </span>
                     {course.pendingTasks > 0 && (
@@ -284,6 +397,7 @@ export default function ProfessorCoursesPage() {
             </div>
           ))}
         </div>
+        )}
       </main>
     </div>
   );

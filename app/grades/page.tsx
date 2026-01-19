@@ -1,89 +1,203 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
+import { StudentService, TareaService, ExamenService } from '@/lib/services';
+
+interface Examen {
+  id: number;
+  courseId: number;
+  titulo: string;
+}
+
+interface ExamenRealizado {
+  studentId: number;
+  calificacion?: number | null | undefined;
+  finalizadoAt?: string | null | undefined;
+}
+
+interface Tarea {
+  id: number;
+  courseId: number;
+  titulo: string;
+}
+
+interface TareaEntregada {
+  studentId: number;
+  calificacion?: number | null | undefined;
+  entregadoAt: string;
+}
+
+interface Student {
+  id: number;
+  userId: number;
+  course: {
+    id: number;
+    nombre: string;
+  };
+}
+
+interface Evaluation {
+  name: string;
+  grade: number;
+  weight: number;
+  date: string;
+  type: string;
+}
 
 export default function GradesPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('2026-1');
-
-  const grades = [
-    {
-      id: 1,
-      course: 'Matemáticas Avanzadas',
-      code: 'MAT-301',
-      evaluations: [
-        { name: 'Examen Parcial 1', grade: 18, weight: 20, date: '2026-01-05' },
-        { name: 'Tarea 1', grade: 17, weight: 10, date: '2026-01-08' },
-        { name: 'Laboratorio', grade: 19, weight: 15, date: '2026-01-10' },
-        { name: 'Participación', grade: 16, weight: 5, date: '2026-01-11' }
-      ],
-      finalGrade: 17.5,
-      color: 'blue'
-    },
-    {
-      id: 2,
-      course: 'Física Cuántica',
-      code: 'FIS-402',
-      evaluations: [
-        { name: 'Examen Parcial 1', grade: 16, weight: 20, date: '2026-01-06' },
-        { name: 'Trabajo Práctico', grade: 18, weight: 15, date: '2026-01-09' },
-        { name: 'Quiz', grade: 15, weight: 10, date: '2026-01-10' }
-      ],
-      finalGrade: 16.3,
-      color: 'green'
-    },
-    {
-      id: 3,
-      course: 'Programación Web',
-      code: 'INF-305',
-      evaluations: [
-        { name: 'Proyecto 1', grade: 19, weight: 25, date: '2026-01-04' },
-        { name: 'Tarea HTML/CSS', grade: 20, weight: 10, date: '2026-01-07' },
-        { name: 'Examen Teórico', grade: 18, weight: 20, date: '2026-01-09' },
-        { name: 'Participación', grade: 17, weight: 5, date: '2026-01-11' }
-      ],
-      finalGrade: 18.5,
-      color: 'purple'
-    },
-    {
-      id: 4,
-      course: 'Literatura Española',
-      code: 'LIT-201',
-      evaluations: [
-        { name: 'Ensayo 1', grade: 16, weight: 20, date: '2026-01-05' },
-        { name: 'Exposición', grade: 17, weight: 15, date: '2026-01-08' },
-        { name: 'Análisis de Texto', grade: 15, weight: 10, date: '2026-01-10' }
-      ],
-      finalGrade: 16.0,
-      color: 'pink'
-    },
-    {
-      id: 5,
-      course: 'Química Orgánica',
-      code: 'QUI-303',
-      evaluations: [
-        { name: 'Laboratorio 1', grade: 17, weight: 15, date: '2026-01-06' },
-        { name: 'Examen Parcial', grade: 15, weight: 20, date: '2026-01-09' },
-        { name: 'Informe', grade: 16, weight: 10, date: '2026-01-11' }
-      ],
-      finalGrade: 15.9,
-      color: 'yellow'
-    },
-    {
-      id: 6,
-      course: 'Historia Universal',
-      code: 'HIS-202',
-      evaluations: [
-        { name: 'Examen 1', grade: 18, weight: 20, date: '2026-01-05' },
-        { name: 'Trabajo Grupal', grade: 17, weight: 15, date: '2026-01-08' },
-        { name: 'Presentación', grade: 19, weight: 10, date: '2026-01-10' }
-      ],
-      finalGrade: 17.8,
-      color: 'indigo'
+  const [isLoading, setIsLoading] = useState(true);
+  const [grades, setGrades] = useState<Array<{
+    id: number;
+    course: string;
+    code: string;
+    evaluations: Evaluation[];
+    finalGrade: number;
+    color: string;
+  }>>([]);
+  const [student] = useState(() => {
+    const userData = getUser();
+    if (userData) {
+      return {
+        name: `${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        studentId: `EST-${String(userData.id).padStart(3, '0')}`,
+      };
     }
-  ];
+    return {
+      name: '',
+      email: '',
+      avatar: 'JP',
+      studentId: '',
+    };
+  });
 
-  const overallAverage = (grades.reduce((acc, g) => acc + g.finalGrade, 0) / grades.length).toFixed(2);
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    const loadGradesData = async () => {
+      try {
+        setIsLoading(true);
+        const userData = getUser();
+        
+        if (!userData) {
+          router.push('/login');
+          return;
+        }
+
+        // Obtener datos del estudiante
+        const students = await StudentService.getAll();
+        const currentStudent = students.find((s: Student) => s.userId === userData.id);
+        
+        if (!currentStudent) {
+          console.error('No se encontró el estudiante');
+          return;
+        }
+
+        const courseData = currentStudent.course;
+        
+        // Obtener tareas con calificaciones
+        const allTareas = await TareaService.getAll();
+        const courseTareas = allTareas.filter((t: Tarea) => t.courseId === courseData.id);
+        
+        const tareasEvaluations = await Promise.all(
+          courseTareas.map(async (tarea: Tarea) => {
+            try {
+              const entregas = await TareaService.getEntregas(tarea.id);
+              const myDelivery = entregas.find((e: TareaEntregada) => e.studentId === currentStudent.id);
+              
+              if (myDelivery && myDelivery.calificacion !== null) {
+                return {
+                  name: tarea.titulo,
+                  grade: myDelivery.calificacion,
+                  weight: 10,
+                  date: new Date(myDelivery.entregadoAt).toLocaleDateString('es-ES'),
+                  type: 'tarea'
+                };
+              }
+              return null;
+            } catch (error) {
+              return null;
+            }
+          })
+        );
+
+        // Obtener exámenes con calificaciones
+        const allExamenes = await ExamenService.getAll();
+        const courseExamenes = allExamenes.filter((e: Examen) => e.courseId === courseData.id);
+        
+        const examenesEvaluations = await Promise.all(
+          courseExamenes.map(async (examen: Examen) => {
+            try {
+              const realizados = await ExamenService.getRealizados(examen.id);
+              const myExam = realizados.find((r: ExamenRealizado) => r.studentId === currentStudent.id);
+              
+              if (myExam && myExam.calificacion !== null) {
+                return {
+                  name: examen.titulo,
+                  grade: myExam.calificacion,
+                  weight: 20,
+                  date: myExam.finalizadoAt ? new Date(myExam.finalizadoAt).toLocaleDateString('es-ES') : 'N/A',
+                  type: 'examen'
+                };
+              }
+              return null;
+            } catch (error) {
+              return null;
+            }
+          })
+        );
+
+        const allEvaluations = [...tareasEvaluations, ...examenesEvaluations].filter(Boolean) as Evaluation[];
+        
+        if (allEvaluations.length > 0) {
+          const finalGrade = allEvaluations.reduce((acc, e: Evaluation) => acc + e.grade, 0) / allEvaluations.length;
+          
+          setGrades([{
+            id: courseData.id,
+            course: courseData.nombre,
+            code: `CURSO-${courseData.id}`,
+            evaluations: allEvaluations,
+            finalGrade: parseFloat(finalGrade.toFixed(2)),
+            color: ['blue', 'green', 'purple', 'pink'][courseData.id % 4]
+          }]);
+        } else {
+          setGrades([]);
+        }
+      } catch (error) {
+        console.error('Error cargando notas:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadGradesData();
+  }, [router]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.push('/login');
+  };
+
+  const overallAverage = grades.length > 0 
+    ? (grades.reduce((acc, g) => acc + g.finalGrade, 0) / grades.length).toFixed(2)
+    : '0.00';
+  
+  const totalEvaluations = grades.reduce((acc, g) => acc + g.evaluations.length, 0);
+  const bestGrade = grades.length > 0 
+    ? Math.max(...grades.map(g => g.finalGrade)).toFixed(1)
+    : '0.0';
 
   const getGradeColor = (grade: number) => {
     if (grade >= 18) return 'text-green-600';
@@ -130,10 +244,60 @@ export default function GradesPage() {
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                JP
-              </div>
+            <div className="ml-4 flex items-center relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center focus:outline-none"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {student.avatar}
+                </div>
+                <div className="ml-3 hidden lg:block text-left">
+                  <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                  <p className="text-xs text-gray-500">{student.studentId}</p>
+                </div>
+                <svg className="ml-2 w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                    <p className="text-xs text-gray-500">{student.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Mi Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Cerrando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar Sesión
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -163,7 +327,7 @@ export default function GradesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Cursos Aprobados</p>
-                <p className="text-3xl font-bold text-gray-900">6/6</p>
+                <p className="text-3xl font-bold text-gray-900">{grades.length}/{grades.length}</p>
               </div>
               <div className="text-4xl">✅</div>
             </div>
@@ -173,7 +337,7 @@ export default function GradesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Mejor Nota</p>
-                <p className="text-3xl font-bold text-green-600">18.5</p>
+                <p className="text-3xl font-bold text-green-600">{bestGrade}</p>
               </div>
               <div className="text-4xl">🏆</div>
             </div>
@@ -183,7 +347,7 @@ export default function GradesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Evaluaciones</p>
-                <p className="text-3xl font-bold text-gray-900">23</p>
+                <p className="text-3xl font-bold text-gray-900">{totalEvaluations}</p>
               </div>
               <div className="text-4xl">📝</div>
             </div>
@@ -210,6 +374,23 @@ export default function GradesPage() {
         </div>
 
         {/* Grades by Course */}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <div className="text-center">
+              <svg className="animate-spin h-12 w-12 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-600">Cargando tus calificaciones...</p>
+            </div>
+          </div>
+        ) : grades.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tienes calificaciones registradas</h3>
+            <p className="text-gray-600">Las calificaciones aparecerán aquí cuando tus profesores las publiquen</p>
+          </div>
+        ) : (
         <div className="space-y-6">
           {grades.map((courseGrade) => (
             <div key={courseGrade.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -300,6 +481,7 @@ export default function GradesPage() {
             </div>
           ))}
         </div>
+        )}
 
         {/* Performance Chart Placeholder */}
         <div className="mt-8 bg-white rounded-xl shadow-sm p-6">

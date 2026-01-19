@@ -4,11 +4,66 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser, logout, isAuthenticated } from '@/lib/services/authService';
+import { StudentService, TareaService } from '@/lib/services';
+
+interface Student {
+  id: number;
+  userId: number;
+  course: {
+    id: number;
+    nombre: string;
+    teacher?: {
+      user: {
+        nombre: string;
+        apellido: string;
+      };
+    };
+  };
+}
+
+interface Tarea {
+  id: number;
+  titulo: string;
+  courseId: number;
+  fechaLimite?: string;
+}
+
+interface Entrega {
+  id: number;
+  studentId: number;
+  tareaId: number;
+}
+
+interface Course {
+  id: number;
+  name: string;
+  professor: string;
+  progress: number;
+  color: string;
+}
+
+interface UpcomingTask {
+  id: number;
+  title: string;
+  course: string;
+  dueDate: string;
+  priority: 'low' | 'medium' | 'high';
+  delivered: boolean;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [recentCourses, setRecentCourses] = useState<Course[]>([]);
+  const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
+  const [stats, setStats] = useState({
+    coursesCount: 0,
+    tasksCount: 0,
+    average: 0,
+    meetings: 0
+  });
   const [user, setUser] = useState({
     name: '',
     email: '',
@@ -23,16 +78,96 @@ export default function DashboardPage() {
       return;
     }
 
-    // Cargar datos del usuario
-    const userData = getUser();
-    if (userData) {
-      setUser({
-        name: `${userData.nombre} ${userData.apellido}`,
-        email: userData.email,
-        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
-        studentId: `ALU-${String(userData.id).padStart(3, '0')}`
-      });
-    }
+    // Cargar datos del usuario y sus cursos/tareas
+    const loadDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const userData = getUser();
+        if (userData) {
+          setUser({
+            name: `${userData.nombre} ${userData.apellido}`,
+            email: userData.email,
+            avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+            studentId: `ALU-${String(userData.id).padStart(3, '0')}`
+          });
+
+          // Obtener datos del estudiante
+          const students = await StudentService.getAll();
+          const currentStudent = students.find((s: Student) => s.userId === userData.id);
+          
+          if (!currentStudent) {
+            console.error('No se encontró el estudiante');
+            return;
+          }
+
+          // Cargar curso del estudiante
+          const courseData = currentStudent.course;
+          const coursesData = [{
+            id: courseData.id,
+            name: courseData.nombre,
+            professor: courseData.teacher 
+              ? `Prof. ${courseData.teacher.user.nombre} ${courseData.teacher.user.apellido}`
+              : 'Sin profesor',
+            progress: 0, // TODO: calcular progreso real
+            color: ['blue', 'green', 'purple', 'pink'][courseData.id % 4]
+          }];
+          setRecentCourses(coursesData);
+
+          // Cargar tareas del curso
+          try {
+            const allTareas = await TareaService.getAll();
+            const courseTareas = allTareas.filter((t: Tarea) => t.courseId === courseData.id);
+            
+            // Obtener tareas con entregas
+            const tasksWithDeliveries = await Promise.all(
+              courseTareas.slice(0, 3).map(async (tarea: Tarea) => {
+                try {
+                  const entregas = await TareaService.getEntregas(tarea.id);
+                  const myDelivery = entregas.find((e: Entrega) => e.studentId === currentStudent.id);
+                  
+                  return {
+                    id: tarea.id,
+                    title: tarea.titulo,
+                    course: courseData.nombre,
+                    dueDate: tarea.fechaLimite ? new Date(tarea.fechaLimite).toLocaleDateString('es-ES') : 'Sin fecha',
+                    priority: (myDelivery ? 'low' : 'high') as 'low' | 'medium' | 'high',
+                    delivered: !!myDelivery
+                  };
+                } catch (error) {
+                  return {
+                    id: tarea.id,
+                    title: tarea.titulo,
+                    course: courseData.nombre,
+                    dueDate: tarea.fechaLimite ? new Date(tarea.fechaLimite).toLocaleDateString('es-ES') : 'Sin fecha',
+                    priority: 'medium' as 'low' | 'medium' | 'high',
+                    delivered: false
+                  };
+                }
+              })
+            );
+
+            const pendingTasks = tasksWithDeliveries.filter(t => !t.delivered);
+            setUpcomingTasks(pendingTasks);
+
+            // Actualizar stats
+            setStats({
+              coursesCount: 1,
+              tasksCount: pendingTasks.length,
+              average: 0, // TODO: calcular promedio real
+              meetings: 0 // TODO: implementar reuniones
+            });
+          } catch (error) {
+            console.error('Error cargando tareas:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando datos del dashboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
   }, [router]);
 
   const handleLogout = async () => {
@@ -41,24 +176,11 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
-  const stats = [
-    { label: 'Cursos Activos', value: '6', icon: '📚', color: 'from-blue-500 to-blue-600' },
-    { label: 'Tareas Pendientes', value: '8', icon: '📝', color: 'from-orange-500 to-orange-600' },
-    { label: 'Promedio General', value: '16.5', icon: '⭐', color: 'from-green-500 to-green-600' },
-    { label: 'Próximas Reuniones', value: '3', icon: '📹', color: 'from-purple-500 to-purple-600' },
-  ];
-
-  const recentCourses = [
-    { id: 1, name: 'Matemáticas Avanzadas', professor: 'Prof. García', progress: 75, color: 'blue' },
-    { id: 2, name: 'Física Cuántica', professor: 'Prof. Martínez', progress: 60, color: 'green' },
-    { id: 3, name: 'Programación Web', professor: 'Prof. López', progress: 90, color: 'purple' },
-    { id: 4, name: 'Literatura Española', professor: 'Prof. Sánchez', progress: 45, color: 'pink' },
-  ];
-
-  const upcomingTasks = [
-    { id: 1, title: 'Ensayo de Literatura', course: 'Literatura Española', dueDate: '2026-01-15', priority: 'high' },
-    { id: 2, title: 'Laboratorio de Física', course: 'Física Cuántica', dueDate: '2026-01-16', priority: 'medium' },
-    { id: 3, title: 'Proyecto Final React', course: 'Programación Web', dueDate: '2026-01-18', priority: 'high' },
+  const statsDisplay = [
+    { label: 'Cursos Activos', value: stats.coursesCount.toString(), icon: '📚', color: 'from-blue-500 to-blue-600' },
+    { label: 'Tareas Pendientes', value: stats.tasksCount.toString(), icon: '📝', color: 'from-orange-500 to-orange-600' },
+    { label: 'Promedio General', value: stats.average > 0 ? stats.average.toFixed(1) : '--', icon: '⭐', color: 'from-green-500 to-green-600' },
+    { label: 'Próximas Reuniones', value: stats.meetings.toString(), icon: '📹', color: 'from-purple-500 to-purple-600' },
   ];
 
   return (
@@ -169,7 +291,14 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
+          {isLoading ? (
+            Array(4).fill(0).map((_, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+                <div className="h-20"></div>
+              </div>
+            ))
+          ) : (
+            statsDisplay.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <div>
@@ -181,7 +310,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          ))}
+          )))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -195,7 +324,19 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {recentCourses.map((course) => (
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <svg className="animate-spin h-8 w-8 text-blue-600 mx-auto" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                ) : recentCourses.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No tienes cursos asignados</p>
+                  </div>
+                ) : (
+                  recentCourses.map((course) => (
                   <div key={course.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -213,7 +354,8 @@ export default function DashboardPage() {
                       ></div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -228,7 +370,19 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {upcomingTasks.map((task) => (
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <svg className="animate-spin h-8 w-8 text-blue-600 mx-auto" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                ) : upcomingTasks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>¡Genial! No tienes tareas pendientes</p>
+                  </div>
+                ) : (
+                  upcomingTasks.map((task) => (
                   <div key={task.id} className="border-l-4 border-orange-500 pl-4 py-2">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -243,7 +397,8 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-xs text-gray-600 mt-2">📅 {task.dueDate}</p>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -251,13 +406,13 @@ export default function DashboardPage() {
             <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-sm p-6 mt-6 text-white">
               <h3 className="text-lg font-bold mb-4">Acciones Rápidas</h3>
               <div className="space-y-2">
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition text-black">
                   📝 Enviar Tarea
                 </button>
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition text-black">
                   📹 Unirse a Reunión
                 </button>
-                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition">
+                <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm rounded-lg px-4 py-3 text-left transition text-black">
                   💬 Contactar Profesor
                 </button>
               </div>
