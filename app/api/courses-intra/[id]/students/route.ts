@@ -10,40 +10,52 @@ export async function GET(
     const { id } = await params;
     const courseId = parseInt(id);
 
-    const students = await prisma.students_intra.findMany({
+    const enrollments = await prisma.enrollments_intra.findMany({
       where: { courseId },
       include: {
-        user: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            email: true,
-            isActive: true,
-          },
-        },
-        tareasEntregadas: {
+        student: {
           include: {
-            tarea: {
+            user: {
               select: {
-                titulo: true,
-                puntos: true,
+                id: true,
+                nombre: true,
+                apellido: true,
+                email: true,
+                isActive: true,
               },
             },
-          },
-        },
-        examenesRealizados: {
-          include: {
-            examen: {
-              select: {
-                titulo: true,
-                puntos: true,
+            tareasEntregadas: {
+              include: {
+                tarea: {
+                  select: {
+                    titulo: true,
+                    puntos: true,
+                  },
+                },
+              },
+            },
+            examenesRealizados: {
+              include: {
+                examen: {
+                  select: {
+                    titulo: true,
+                    puntos: true,
+                  },
+                },
               },
             },
           },
         },
       },
     });
+
+    // Devolver solo los datos del estudiante y datos de inscripción
+    const students = enrollments.map((enrollment) => ({
+      ...enrollment.student,
+      enrollmentId: enrollment.id,
+      enrollmentEstado: enrollment.estado,
+      enrollmentCreatedAt: enrollment.createdAt,
+    }));
 
     return NextResponse.json(students, { status: 200 });
   } catch (error) {

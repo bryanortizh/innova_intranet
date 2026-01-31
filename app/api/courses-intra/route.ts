@@ -12,51 +12,60 @@ export async function GET(request: NextRequest) {
     if (teacherId) where.teacherId = parseInt(teacherId);
     if (estado) where.estado = estado === "true";
 
-    const courses = await prisma.courses_intra.findMany({
-      where,
+const courses = await prisma.courses_intra.findMany({
+  where,
+  include: {
+    teacher: {
       include: {
-        teacher: {
+        user: { select: { nombre: true, apellido: true, email: true } }
+      }
+    },
+    enrollments: {
+      include: {
+        student: {
           include: {
-            user: {
-              select: {
-                nombre: true,
-                apellido: true,
-                email: true,
-              },
-            },
-          },
-        },
-        students: {
-          include: {
-            user: {
-              select: {
-                nombre: true,
-                apellido: true,
-                email: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            students: true,
-            ciclos: true,
-            tareas: true,
-            examenes: true,
-            recursos: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+            user: { select: { nombre: true, apellido: true, email: true } }
+          }
+        }
+      }
+    },
+    _count: {
+      select: {
+        enrollments: true,
+        ciclos: true,
+        tareas: true,
+        examenes: true,
+        recursos: true
+      }
+    }
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+});
+
+    // Mapear enrollments a students directo para cada curso
+    const coursesWithStudents = courses.map((course) => {
+      const students = course.enrollments.map((enrollment) => ({
+        ...enrollment.student,
+        user: enrollment.student.user,
+        enrollmentId: enrollment.id,
+        enrollmentEstado: enrollment.estado,
+        enrollmentCreatedAt: enrollment.createdAt,
+      }));
+      // Excluimos enrollments del objeto final para evitar duplicidad/confusión
+      const { enrollments, ...rest } = course;
+      return {
+        ...rest,
+        students,
+      };
     });
 
-    return NextResponse.json(courses, { status: 200 });
+    return NextResponse.json(coursesWithStudents, { status: 200 });
   } catch (error) {
-    console.error("Error al obtener cursos:", error);
+    console.error("Error al obtener cc:", error);
     return NextResponse.json(
-      { error: "Error al obtener cursos" },
+      { error: "Error al obtener cursoscc" },
       { status: 500 },
     );
   }

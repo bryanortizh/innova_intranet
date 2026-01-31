@@ -14,24 +14,27 @@ export default function SchedulePage() {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [horariosOrganizados, setHorariosOrganizados] = useState<Record<string, any[]>>({});
   const [courseData, setCourseData] = useState<any>(null);
-  const [student] = useState(() => {
-    const userData = getUser();
-    if (userData) {
-      return {
-        name: `${userData.nombre} ${userData.apellido}`,
-        email: userData.email,
-        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
-        studentId: `EST-${String(userData.id).padStart(3, '0')}`,
-      };
-    }
-    return {
-      name: '',
-      email: '',
-      avatar: 'ES',
-      studentId: '',
-    };
+  const [courses, setCourses] = useState<any[]>([]); // For multiple courses
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [student, setStudent] = useState({
+    name: '',
+    email: '',
+    avatar: 'ES',
+    studentId: '',
   });
 
+  // Set student info and avatar initials on client only
+  useEffect(() => {
+    const userData = getUser();
+    if (userData) {
+      setStudent({
+        name: `${userData.nombre} ${userData.apellido}`,
+        email: userData.email,
+        avatar: `${userData.nombre?.[0] || ''}${userData.apellido?.[0] || ''}`.toUpperCase() || 'ES',
+        studentId: `EST-${String(userData.id).padStart(3, '0')}`,
+      });
+    }
+  }, []);
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -42,41 +45,58 @@ export default function SchedulePage() {
       try {
         setIsLoading(true);
         const userData = getUser();
-        
         if (!userData) {
           router.push('/login');
           return;
         }
-
         // Obtener datos del estudiante
         const students = await StudentService.getAll();
         const currentStudent = students.find((s: any) => s.userId === userData.id);
-        
         if (!currentStudent) {
           console.error('No se encontró el estudiante');
+          setHorarios([]);
+          setHorariosOrganizados({});
+          setCourses([]);
+          setCourseData(null);
           return;
         }
-
-        const course = currentStudent.course;
-        setCourseData(course);
-        
-        // Obtener horarios del curso
-        const horariosData = await HorarioService.getByCourse(course.id);
+        // Si el estudiante tiene varios cursos, usar todos
+        let courseList = [];
+        if (Array.isArray(currentStudent.courses)) {
+          courseList = currentStudent.courses;
+        } else if (currentStudent.course) {
+          courseList = [currentStudent.course];
+        }
+        setCourses(courseList);
+        // Selección de curso: si hay uno, seleccionarlo automáticamente
+        let courseToShow = null;
+        if (selectedCourseId) {
+          courseToShow = courseList.find((c: any) => c.id === selectedCourseId) || courseList[0];
+        } else {
+          courseToShow = courseList[0];
+        }
+        setCourseData(courseToShow);
+        if (!courseToShow) {
+          setHorarios([]);
+          setHorariosOrganizados({});
+          return;
+        }
+        // Obtener horarios del curso seleccionado
+        const horariosData = await HorarioService.getByCourse(courseToShow.id);
         setHorarios(horariosData);
-        
         // Organizar por día
         const organizados = HorarioService.organizarPorDia(horariosData);
         setHorariosOrganizados(organizados);
-        
       } catch (error) {
         console.error('Error cargando horarios:', error);
+        setHorarios([]);
+        setHorariosOrganizados({});
       } finally {
         setIsLoading(false);
       }
     };
-
     loadSchedule();
-  }, [router]);
+  }, [router, selectedCourseId]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -232,7 +252,21 @@ export default function SchedulePage() {
           </div>
         ) : (
           <>
-            {/* Course Info Card */}
+            {/* Course Info Card & Selector for multiple courses */}
+            {courses.length > 1 && (
+              <div className="mb-6">
+                <label className="block text-gray-700 font-semibold mb-2">Selecciona un curso:</label>
+                <select
+                  className="border rounded px-3 py-2"
+                  value={selectedCourseId || courses[0]?.id}
+                  onChange={e => setSelectedCourseId(Number(e.target.value))}
+                >
+                  {courses.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {courseData && (
               <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 mb-8 text-white">
                 <div className="flex items-center justify-between">

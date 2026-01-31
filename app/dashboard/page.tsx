@@ -100,44 +100,54 @@ export default function DashboardPage() {
             return;
           }
 
-          // Cargar curso del estudiante
-          const courseData = currentStudent.course;
-          const coursesData = [{
-            id: courseData.id,
-            name: courseData.nombre,
-            professor: courseData.teacher 
+          // Cargar cursos del estudiante (soporta varios cursos)
+          let courseList = [];
+          if (Array.isArray(currentStudent.courses)) {
+            courseList = currentStudent.courses;
+          } else if (currentStudent.course) {
+            courseList = [currentStudent.course];
+          }
+          // Mapear cursos para la UI
+          const coursesData = courseList.map((courseData: any) => ({
+            id: courseData?.id,
+            name: courseData?.nombre,
+            professor: courseData?.teacher 
               ? `Prof. ${courseData.teacher.user.nombre} ${courseData.teacher.user.apellido}`
               : 'Sin profesor',
             progress: 0, // TODO: calcular progreso real
-            color: ['blue', 'green', 'purple', 'pink'][courseData.id % 4]
-          }];
+            color: ['blue', 'green', 'purple', 'pink'][courseData?.id % 4 || 0]
+          }));
           setRecentCourses(coursesData);
 
-          // Cargar tareas del curso
+          // Cargar tareas de todos los cursos
           try {
-            const allTareas = await TareaService.getAll();
-            const courseTareas = allTareas.filter((t: Tarea) => t.courseId === courseData.id);
-            
-            // Obtener tareas con entregas
+            // Obtener tareas de cada curso por separado
+            let allTareas: Tarea[] = [];
+            for (const course of courseList) {
+              const tareas = await TareaService.getAll(course.id); // getAll(courseId)
+              allTareas = allTareas.concat(tareas);
+            }
+            // Obtener tareas con entregas (solo las primeras 3 tareas de todos los cursos)
             const tasksWithDeliveries = await Promise.all(
-              courseTareas.slice(0, 3).map(async (tarea: Tarea) => {
+              allTareas.slice(0, 3).map(async (tarea: Tarea) => {
                 try {
                   const entregas = await TareaService.getEntregas(tarea.id);
                   const myDelivery = entregas.find((e: Entrega) => e.studentId === currentStudent.id);
-                  
+                  const courseObj = courseList.find((c: any) => c.id === tarea.courseId);
                   return {
                     id: tarea.id,
                     title: tarea.titulo,
-                    course: courseData.nombre,
+                    course: courseObj?.nombre || 'Curso',
                     dueDate: tarea.fechaLimite ? new Date(tarea.fechaLimite).toLocaleDateString('es-ES') : 'Sin fecha',
                     priority: (myDelivery ? 'low' : 'high') as 'low' | 'medium' | 'high',
                     delivered: !!myDelivery
                   };
                 } catch (error) {
+                  const courseObj = courseList.find((c: any) => c.id === tarea.courseId);
                   return {
                     id: tarea.id,
                     title: tarea.titulo,
-                    course: courseData.nombre,
+                    course: courseObj?.nombre || 'Curso',
                     dueDate: tarea.fechaLimite ? new Date(tarea.fechaLimite).toLocaleDateString('es-ES') : 'Sin fecha',
                     priority: 'medium' as 'low' | 'medium' | 'high',
                     delivered: false
@@ -151,7 +161,7 @@ export default function DashboardPage() {
 
             // Actualizar stats
             setStats({
-              coursesCount: 1,
+              coursesCount: courseList.length,
               tasksCount: pendingTasks.length,
               average: 0, // TODO: calcular promedio real
               meetings: 0 // TODO: implementar reuniones

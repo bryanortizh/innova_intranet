@@ -44,54 +44,58 @@ export default function CoursesPage() {
       try {
         setIsLoading(true);
         const userData = getUser();
-        
         if (!userData) {
           router.push('/login');
           return;
         }
 
-        // Obtener todos los estudiantes para encontrar el del usuario actual
-        const students = await StudentService.getAll();
+        // Llamar a la API real de students-intra
+        const res = await fetch('/api/students-intra');
+        if (!res.ok) throw new Error('No se pudo obtener la información de estudiantes');
+        const students = await res.json();
+        // Buscar el estudiante del usuario logueado
         const currentStudent = students.find((s: any) => s.userId === userData.id);
-        
         if (!currentStudent) {
-          console.error('No se encontró el estudiante');
+          setCourses([]);
+          setStudentData(null);
           return;
         }
-
         setStudentData(currentStudent);
 
-        // El estudiante tiene un curso asignado
-        const coursesData = [{
-          id: currentStudent.course.id,
-          name: currentStudent.course.nombre,
-          code: `CURSO-${currentStudent.course.id}`,
-          professor: currentStudent.course.teacher 
-            ? `Prof. ${currentStudent.course.teacher.user.nombre} ${currentStudent.course.teacher.user.apellido}`
+        // Tomar todos los cursos a los que está inscrito
+        const coursesData = (currentStudent.courses || []).map((course: any) => ({
+          id: course.id,
+          name: course.nombre,
+          code: `CURSO-${course.id}`,
+          professor: course.teacher
+            ? `Prof. ${course.teacher.user.nombre} ${course.teacher.user.apellido}`
             : 'Sin profesor asignado',
           schedule: 'Horario por definir',
           progress: 0, // TODO: calcular progreso real
           students: 0, // TODO: contar estudiantes
           semester: '2026-1',
-          color: ['blue', 'green', 'purple', 'pink', 'yellow', 'indigo'][currentStudent.course.id % 6],
-          description: 'Curso activo del semestre actual'
-        }];
-
+          color: ['blue', 'green', 'purple', 'pink', 'yellow', 'indigo'][course.id % 6],
+          description: 'Curso activo del semestre actual',
+        }));
         setCourses(coursesData);
 
-        // Cargar horarios del curso
-        try {
-          const horariosData = await HorarioService.getByCourse(currentStudent.course.id);
-          setHorarios(horariosData);
-          
-          // Organizar por día
-          const organizados = HorarioService.organizarPorDia(horariosData);
-          setHorariosOrganizados(organizados);
-        } catch (error) {
-          console.error('Error cargando horarios:', error);
+        // Cargar horarios del primer curso (opcional)
+        if (coursesData.length > 0) {
+          try {
+            const horariosData = await HorarioService.getByCourse(coursesData[0].id);
+            setHorarios(horariosData);
+            const organizados = HorarioService.organizarPorDia(horariosData);
+            setHorariosOrganizados(organizados);
+          } catch (error) {
+            console.error('Error cargando horarios:', error);
+          }
+        } else {
+          setHorarios([]);
+          setHorariosOrganizados({});
         }
       } catch (error) {
         console.error('Error cargando cursos del estudiante:', error);
+        setCourses([]);
       } finally {
         setIsLoading(false);
       }

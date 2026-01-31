@@ -16,23 +16,25 @@ export default function ProfessorStudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([{ code: 'all', name: 'Todos los cursos' }]);
   const [teacherCourses, setTeacherCourses] = useState<any[]>([]);
-  const [professor] = useState(() => {
+  const [professor, setProfessor] = useState({
+    name: '',
+    email: '',
+    avatar: 'ML',
+    professorId: '',
+  });
+
+  useEffect(() => {
+    // Solo ejecutar en cliente para evitar mismatch SSR/CSR
     const userData = getUser();
     if (userData) {
-      return {
+      setProfessor({
         name: `Prof. ${userData.nombre} ${userData.apellido}`,
         email: userData.email,
-        avatar: `${userData.nombre[0]}${userData.apellido[0]}`.toUpperCase(),
+        avatar: `${(userData.nombre?.[0] || '').toUpperCase()}${(userData.apellido?.[0] || '').toUpperCase()}` || 'ML',
         professorId: `PROF-${String(userData.id).padStart(3, '0')}`,
-      };
+      });
     }
-    return {
-      name: '',
-      email: '',
-      avatar: 'ML',
-      professorId: '',
-    };
-  });
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -244,7 +246,7 @@ export default function ProfessorStudentsPage() {
                 className="flex items-center focus:outline-none"
               >
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-purple-600 font-bold">
-                  {professor.avatar}
+                  {professor.avatar || 'ML'}
                 </div>
                 <div className="ml-3 hidden lg:block text-left">
                   <p className="text-sm font-medium text-white">{professor.name}</p>

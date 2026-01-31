@@ -75,7 +75,7 @@ model courses_intra {
   // Relaciones
   teacherId   Int?
   teacher     teachers_intra?        @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  students    students_intra[]
+  enrollments enrollments_intra[]
   ciclos      ciclos_intra[]
   tareas      tareas_intra[]
   examenes    examenes_intra[]
@@ -113,17 +113,32 @@ model students_intra {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Relación muchos a muchos con cursos
-  courseId    Int
-  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // Relación muchos a muchos con cursos a través de enrollments
+  enrollments        enrollments_intra[]
   
   // Relaciones con contenido
   tareasEntregadas   tareas_entregadas[]
   examenesRealizados examenes_realizados[]
 
-  @@index([courseId])
   @@index([userId])
   @@map("students_intra")
+}
+
+// Tabla intermedia para la relación muchos a muchos entre estudiantes y cursos
+model enrollments_intra {
+  id          Int       @id @default(autoincrement())
+  studentId   Int
+  student     students_intra @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId    Int
+  course      courses_intra @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  estado      String    @default("ACTIVO") @db.VarChar(20) // ACTIVO, RETIRADO, COMPLETADO
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([studentId, courseId]) // Un estudiante no puede inscribirse dos veces en el mismo curso
+  @@index([studentId])
+  @@index([courseId])
+  @@map("enrollments_intra")
 }
 
 // Ciclos del curso (módulos o unidades)

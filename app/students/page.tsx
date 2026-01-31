@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import UserCourses from "./UserCourses";
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,6 +195,10 @@ export default function StudentsPage() {
     averageAttendance: (students.reduce((acc, s) => acc + s.attendance, 0) / students.length).toFixed(1)
   };
 
+  // Ejemplo: obtener el userId del usuario logueado
+  // Reemplaza esto por el userId real de tu sistema de autenticación
+  const userId = 2; // <-- Cambia esto por el userId dinámico
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
@@ -227,6 +232,11 @@ export default function StudentsPage() {
           </div>
         </div>
       </nav>
+
+      {/* Mostrar cursos del usuario */}
+      <div className="max-w-2xl mx-auto my-8">
+        <UserCourses userId={userId} />
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

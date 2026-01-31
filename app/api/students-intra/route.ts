@@ -8,39 +8,106 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get("courseId");
 
-    const where = courseId ? { courseId: parseInt(courseId) } : {};
+    let students;
 
-    const students = await prisma.students_intra.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            email: true,
-            isActive: true,
-            rol: true,
+    if (courseId) {
+      // Si se especifica un curso, obtener estudiantes de ese curso a través de enrollments
+      const enrollments = await prisma.enrollments_intra.findMany({
+        where: { courseId: parseInt(courseId) },
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  apellido: true,
+                  email: true,
+                  isActive: true,
+                  rol: true,
+                },
+              },
+            },
           },
-        },
-        course: {
-          select: {
-            id: true,
-            nombre: true,
-            teacher: {
-              include: {
-                user: {
-                  select: {
-                    nombre: true,
-                    apellido: true,
+          course: {
+            select: {
+              id: true,
+              nombre: true,
+              teacher: {
+                include: {
+                  user: {
+                    select: {
+                      nombre: true,
+                      apellido: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
+
+      // Transformar el resultado para que sea más fácil de usar
+      students = enrollments.map((enrollment) => ({
+        ...enrollment.student,
+        enrollmentId: enrollment.id,
+        enrollmentEstado: enrollment.estado,
+        enrollmentCreatedAt: enrollment.createdAt,
+        course: enrollment.course,
+      }));
+    } else {
+      // Si no se especifica curso, obtener todos los estudiantes con sus cursos
+      const studentsRaw = await prisma.students_intra.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              email: true,
+              isActive: true,
+              rol: true,
+            },
+          },
+          enrollments: {
+            include: {
+              course: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  teacher: {
+                    include: {
+                      user: {
+                        select: {
+                          nombre: true,
+                          apellido: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Mapear enrollments a courses directo para cada estudiante
+      students = studentsRaw.map((student) => {
+        const courses = student.enrollments.map((enrollment) => ({
+          ...enrollment.course,
+          enrollmentId: enrollment.id,
+          enrollmentEstado: enrollment.estado,
+          enrollmentCreatedAt: enrollment.createdAt,
+        }));
+        const { enrollments, ...rest } = student;
+        return {
+          ...rest,
+          courses,
+        };
+      });
+    }
 
     return NextResponse.json(students, { status: 200 });
   } catch (error) {
@@ -64,8 +131,109 @@ export async function POST(request: NextRequest) {
       telefono,
       fotoPerfil,
       courseId,
+      userId, // Nuevo: para asignar un usuario existente a un curso
     } = body;
 
+    // Si se proporciona userId, significa que el estudiante ya existe y solo se asigna a un nuevo curso
+    if (userId) {
+      // Validar que courseId esté presente
+      if (!courseId) {
+        return NextResponse.json(
+          { error: "El curso es obligatorio" },
+          { status: 400 },
+        );
+      }
+
+      // Verificar que el usuario existe y es un estudiante
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { student: true },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: "El usuario no existe" },
+          { status: 404 },
+        );
+      }
+
+      if (user.rol !== "ALUMNO") {
+        return NextResponse.json(
+          { error: "El usuario no es un alumno" },
+          { status: 400 },
+        );
+      }
+
+      if (!user.student) {
+        return NextResponse.json(
+          { error: "El usuario no tiene un perfil de estudiante" },
+          { status: 400 },
+        );
+      }
+
+      // Verificar que el curso existe
+      const course = await prisma.courses_intra.findUnique({
+        where: { id: courseId },
+      });
+
+      if (!course) {
+        return NextResponse.json(
+          { error: "El curso especificado no existe" },
+          { status: 404 },
+        );
+      }
+
+      // Verificar que no esté ya inscrito en el curso
+      const existingEnrollment = await prisma.enrollments_intra.findUnique({
+        where: {
+          studentId_courseId: {
+            studentId: user.student.id,
+            courseId: courseId,
+          },
+        },
+      });
+
+      if (existingEnrollment) {
+        return NextResponse.json(
+          { error: "El estudiante ya está inscrito en este curso" },
+          { status: 400 },
+        );
+      }
+
+      // Crear inscripción en el curso
+      const enrollment = await prisma.enrollments_intra.create({
+        data: {
+          studentId: user.student.id,
+          courseId,
+        },
+        include: {
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  apellido: true,
+                  email: true,
+                  isActive: true,
+                  rol: true,
+                },
+              },
+            },
+          },
+          course: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json(enrollment, { status: 201 });
+    }
+
+    // Flujo original: crear un nuevo estudiante
     // Validaciones
     if (!nombre || !apellido || !email || !password || !courseId) {
       return NextResponse.json(
@@ -115,25 +283,36 @@ export async function POST(request: NextRequest) {
           rol: "ALUMNO",
           isActive: true,
         },
-      });
+      }); 
 
       // Crear estudiante
       const student = await tx.students_intra.create({
         data: {
           userId: user.id,
-          courseId,
           telefono,
           fotoPerfil,
         },
+      });
+
+      // Crear inscripción en el curso
+      const enrollment = await tx.enrollments_intra.create({
+        data: {
+          studentId: student.id,
+          courseId,
+        },
         include: {
-          user: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              email: true,
-              isActive: true,
-              rol: true,
+          student: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  apellido: true,
+                  email: true,
+                  isActive: true,
+                  rol: true,
+                },
+              },
             },
           },
           course: {
@@ -145,7 +324,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return student;
+      return enrollment;
     });
 
     return NextResponse.json(result, { status: 201 });

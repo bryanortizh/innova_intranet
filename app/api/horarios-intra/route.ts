@@ -22,20 +22,38 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
 
-    // Si es alumno, obtener automáticamente su curso
+
     if (user.rol === "ALUMNO") {
+      // Buscar el estudiante
       const student = await prisma.students_intra.findUnique({
         where: { userId: user.userId },
-        select: { courseId: true },
+        select: { id: true },
       });
-
-      if (student) {
-        where.courseId = student.courseId;
-      } else {
+      if (!student) {
         return NextResponse.json(
           { error: "Estudiante no encontrado" },
           { status: 404 },
         );
+      }
+      // Buscar los cursos en los que está inscrito
+      const enrollments = await prisma.enrollments_intra.findMany({
+        where: { studentId: student.id },
+        select: { courseId: true },
+      });
+      const enrolledCourseIds = enrollments.map(e => e.courseId);
+      if (courseId) {
+        // Si se pasa courseId, verificar que el alumno esté inscrito
+        const parsedCourseId = parseInt(courseId);
+        if (!enrolledCourseIds.includes(parsedCourseId)) {
+          return NextResponse.json(
+            { error: "No inscrito en el curso solicitado" },
+            { status: 403 },
+          );
+        }
+        where.courseId = parsedCourseId;
+      } else {
+        // Si no se pasa courseId, traer todos los cursos en los que está inscrito
+        where.courseId = { in: enrolledCourseIds };
       }
     } else {
       // Si es profesor, permitir filtrado opcional por courseId
