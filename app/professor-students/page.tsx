@@ -7,6 +7,77 @@ import { getUser, isAuthenticated, logout } from '@/lib/services/authService';
 import { CourseService, TeacherService } from '@/lib/services';
 
 export default function ProfessorStudentsPage() {
+  // Función para cargar estudiantes de todos los cursos (optimizada)
+  const loadAllStudents = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/courses-intra/all/students', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      if (!res.ok) throw new Error('No se pudo obtener estudiantes');
+      const studentsRaw = await res.json();
+      // Mapear para UI
+      const studentsData = studentsRaw.map((student: any) => ({
+        id: student.id,
+        uniqueKey: `${student.id}-${student.enrollmentId}`,
+        name: `${student.user.nombre} ${student.user.apellido}`,
+        studentId: `EST-${String(student.id).padStart(3, '0')}`,
+        email: student.user.email,
+        course: '',
+        courseName: '',
+        courseId: '',
+        grade: 0,
+        attendance: 0,
+        lastSubmission: '-',
+        status: 'good',
+        avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
+      }));
+      setStudents(studentsData);
+    } catch (error) {
+      console.error('Error cargando estudiantes:', error);
+    }
+  };
+
+  // Manejar cambio de curso en el select
+  const handleCourseChange = async (courseCode: string) => {
+    setSelectedCourse(courseCode);
+    setIsLoading(true);
+
+    try {
+      if (courseCode === 'all') {
+        // Solo una llamada optimizada
+        await loadAllStudents();
+      } else {
+        // Cargar estudiantes solo del curso seleccionado
+        const selectedCourseData = courses.find(c => c.code === courseCode);
+        if (selectedCourseData && selectedCourseData.id) {
+          const courseStudents = await CourseService.getStudents(selectedCourseData.id);
+          const studentsData = courseStudents.map((student: any) => ({
+            id: student.id,
+            uniqueKey: `${student.id}-${selectedCourseData.id}`,
+            name: `${student.user.nombre} ${student.user.apellido}`,
+            studentId: `EST-${String(student.id).padStart(3, '0')}`,
+            email: student.user.email,
+            course: selectedCourseData.code,
+            courseName: selectedCourseData.name,
+            courseId: selectedCourseData.id,
+            grade: 0,
+            attendance: 0,
+            lastSubmission: '-',
+            status: 'good',
+            avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
+          }));
+          setStudents(studentsData);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cambiar curso:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -76,8 +147,8 @@ export default function ProfessorStudentsPage() {
         ];
         setCourses(coursesForFilter);
 
-        // Cargar estudiantes de todos los cursos inicialmente
-        await loadStudentsForCourses(courses);
+        // Cargar estudiantes de todos los cursos inicialmente (optimizado)
+        await loadAllStudents();
       } catch (error) {
         console.error('Error cargando estudiantes:', error);
       } finally {
@@ -88,82 +159,8 @@ export default function ProfessorStudentsPage() {
     loadStudentsData();
   }, [router]);
 
-  // Función para cargar estudiantes de cursos específicos
-  const loadStudentsForCourses = async (coursesToLoad: any[]) => {
-    try {
-      const allStudents: any[] = [];
-      
-      for (const course of coursesToLoad) {
-        const courseStudents = await CourseService.getStudents(course.id);
-        
-        courseStudents.forEach((student: any) => {
-          const studentKey = `${student.id}-${course.id}`;
-          
-          allStudents.push({
-            id: student.id,
-            uniqueKey: studentKey,
-            name: `${student.user.nombre} ${student.user.apellido}`,
-            studentId: `EST-${String(student.id).padStart(3, '0')}`,
-            email: student.user.email,
-            course: course.codigo || `CURSO-${course.id}`,
-            courseName: course.nombre,
-            courseId: course.id,
-            grade: 0, // TODO: calcular promedio real
-            attendance: 0, // TODO: calcular asistencia real
-            lastSubmission: '-',
-            status: 'good',
-            avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
-          });
-        });
-      }
-
-      setStudents(allStudents);
-    } catch (error) {
-      console.error('Error cargando estudiantes:', error);
-    }
-  };
 
   // Manejar cambio de curso en el select
-  const handleCourseChange = async (courseCode: string) => {
-    setSelectedCourse(courseCode);
-    setIsLoading(true);
-
-    try {
-      if (courseCode === 'all') {
-        // Cargar estudiantes de todos los cursos
-        await loadStudentsForCourses(teacherCourses);
-      } else {
-        // Cargar estudiantes solo del curso seleccionado
-        const selectedCourseData = courses.find(c => c.code === courseCode);
-        if (selectedCourseData && selectedCourseData.id) {
-          const courseStudents = await CourseService.getStudents(selectedCourseData.id);
-          
-          const studentsData = courseStudents.map((student: any) => ({
-            id: student.id,
-            uniqueKey: `${student.id}-${selectedCourseData.id}`,
-            name: `${student.user.nombre} ${student.user.apellido}`,
-            studentId: `EST-${String(student.id).padStart(3, '0')}`,
-            email: student.user.email,
-            course: selectedCourseData.code,
-            courseName: selectedCourseData.name,
-            courseId: selectedCourseData.id,
-            grade: 0,
-            attendance: 0,
-            lastSubmission: '-',
-            status: 'good',
-            avatar: `${student.user.nombre[0]}${student.user.apellido[0]}`.toUpperCase()
-          }));
-          
-          setStudents(studentsData);
-        }
-      }
-    } catch (error) {
-      console.error('Error al cambiar curso:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();

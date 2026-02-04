@@ -46,11 +46,11 @@ export default function ProfessorDashboardPage() {
     const loadTeacherData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Obtener datos del profesor por userId
         const teachers = await TeacherService.getAll();
         const teacher = teachers.find((t: any) => t.userId === professor.userId);
-        
+
         if (!teacher) {
           console.error('No se encontró el profesor');
           return;
@@ -60,25 +60,46 @@ export default function ProfessorDashboardPage() {
 
         // Obtener cursos del profesor
         const courses = await CourseService.getByTeacher(teacher.id);
-        
-        // Calcular total de estudiantes y tareas pendientes
-        let studentsCount = 0;
-        const coursesWithData = await Promise.all(
-          courses.map(async (course: any) => {
-            const students = await CourseService.getStudents(course.id);
-            studentsCount += students.length;
-            
-            return {
-              id: course.id,
-              name: course.nombre,
-              code: course.codigo || `CURSO-${course.id}`,
-              students: students.length,
-              schedule: course.horario || 'Horario por definir',
-              pending: 0, // TODO: calcular tareas pendientes
-              color: ['purple', 'blue', 'green', 'indigo', 'pink'][course.id % 5]
-            };
-          })
-        );
+
+        // Obtener todos los estudiantes de todos los cursos en una sola llamada
+        let studentsByCourse: Record<number, any[]> = {};
+        try {
+          // Llama solo una vez al endpoint con 'all'
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/courses-intra/all/students', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            studentsByCourse = data.studentsByCourse || {};
+          }
+        } catch (err) {
+          console.error('Error obteniendo estudiantes:', err);
+        }
+
+        // Calcular el total de estudiantes únicos en todos los cursos
+        // Sumar el total de estudiantes de todos los cursos (puede haber repetidos si un estudiante está en varios cursos)
+        let studentsCount = Object.values(studentsByCourse).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+        // Fallback: si studentsByCourse está vacío, sumar los students de los cursos
+        if (studentsCount === 0 && courses.length > 0) {
+          studentsCount = courses.reduce((acc: number, course: any) => acc + (Array.isArray(course.students) ? course.students.length : 0), 0);
+        }
+
+        const coursesWithData = courses.map((course: any) => {
+          const students = studentsByCourse[course.id] || [];
+          return {
+            id: course.id,
+            name: course.nombre,
+            code: course.codigo || `CURSO-${course.id}`,
+            students: students.length,
+            schedule: course.horario || 'Horario por definir',
+            pending: 0, // TODO: calcular tareas pendientes
+            color: ['purple', 'blue', 'green', 'indigo', 'pink'][course.id % 5],
+            cantidadEstudiantes: course.students.length,
+          };
+        });
 
         setMyCourses(coursesWithData);
         setTotalStudents(studentsCount);
@@ -339,7 +360,7 @@ export default function ProfessorDashboardPage() {
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
-                        {course.students} estudiantes
+                        {course.cantidadEstudiantes} estudiantes
                       </div>
                       <div className="flex gap-2">
                         <button className="px-3 py-1 bg-purple-600 text-white rounded text-xs font-medium hover:bg-purple-700 transition">
@@ -348,6 +369,12 @@ export default function ProfessorDashboardPage() {
                         <button className="px-3 py-1 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50 transition">
                           Gestionar
                         </button>
+                        <a
+                          href={`/courses-instructivo/profesor?id=${course.id}`}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition"
+                        >
+                          Ver Instructivo
+                        </a>
                       </div>
                     </div>
                   </div>

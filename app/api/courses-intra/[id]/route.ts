@@ -12,68 +12,6 @@ export async function GET(
 
     const course = await prisma.courses_intra.findUnique({
       where: { id: courseId },
-      include: {
-        teacher: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                nombre: true,
-                apellido: true,
-                email: true,
-                isActive: true,
-              },
-            },
-          },
-        },
-        students: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                nombre: true,
-                apellido: true,
-                email: true,
-                isActive: true,
-              },
-            },
-          },
-        },
-        ciclos: {
-          orderBy: {
-            orden: "asc",
-          },
-        },
-        tareas: {
-          orderBy: {
-            fechaEntrega: "asc",
-          },
-          include: {
-            _count: {
-              select: {
-                entregas: true,
-              },
-            },
-          },
-        },
-        examenes: {
-          orderBy: {
-            fechaInicio: "asc",
-          },
-          include: {
-            _count: {
-              select: {
-                realizados: true,
-              },
-            },
-          },
-        },
-        recursos: {
-          orderBy: {
-            orden: "asc",
-          },
-        },
-      },
     });
 
     if (!course) {

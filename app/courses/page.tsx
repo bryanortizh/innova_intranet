@@ -49,8 +49,13 @@ export default function CoursesPage() {
           return;
         }
 
-        // Llamar a la API real de students-intra
-        const res = await fetch('/api/students-intra');
+        // Llamar a la API real de students-intra con el token
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/students-intra', {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+        });
         if (!res.ok) throw new Error('No se pudo obtener la información de estudiantes');
         const students = await res.json();
         // Buscar el estudiante del usuario logueado

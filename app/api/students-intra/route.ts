@@ -10,6 +10,20 @@ export async function GET(request: NextRequest) {
 
     let students;
 
+    // Obtener usuario autenticado desde el token
+    const authHeader = request.headers.get('authorization') || '';
+    const token = authHeader.replace('Bearer ', '');
+    let userIdFromToken: number | null = null;
+    if (token) {
+      try {
+        // Decodificar el token JWT (sin verificar firma, solo para extraer el payload)
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        userIdFromToken = payload.id || payload.userId || null;
+      } catch (e) {
+        userIdFromToken = null;
+      }
+    }
+
     if (courseId) {
       // Si se especifica un curso, obtener estudiantes de ese curso a través de enrollments
       const enrollments = await prisma.enrollments_intra.findMany({
@@ -57,8 +71,12 @@ export async function GET(request: NextRequest) {
         course: enrollment.course,
       }));
     } else {
-      // Si no se especifica curso, obtener todos los estudiantes con sus cursos
-      const studentsRaw = await prisma.students_intra.findMany({
+      // Si no se especifica curso, obtener solo el estudiante autenticado
+      if (!userIdFromToken) {
+        return NextResponse.json([], { status: 200 });
+      }
+      const student = await prisma.students_intra.findUnique({
+        where: { userId: userIdFromToken },
         include: {
           user: {
             select: {
@@ -92,21 +110,20 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-
-      // Mapear enrollments a courses directo para cada estudiante
-      students = studentsRaw.map((student) => {
-        const courses = student.enrollments.map((enrollment) => ({
-          ...enrollment.course,
-          enrollmentId: enrollment.id,
-          enrollmentEstado: enrollment.estado,
-          enrollmentCreatedAt: enrollment.createdAt,
-        }));
-        const { enrollments, ...rest } = student;
-        return {
-          ...rest,
-          courses,
-        };
-      });
+      if (!student) {
+        return NextResponse.json([], { status: 200 });
+      }
+      const courses = student.enrollments.map((enrollment) => ({
+        ...enrollment.course,
+        enrollmentId: enrollment.id,
+        enrollmentEstado: enrollment.estado,
+        enrollmentCreatedAt: enrollment.createdAt,
+      }));
+      const { enrollments, ...rest } = student;
+      students = [{
+        ...rest,
+        courses,
+      }];
     }
 
     return NextResponse.json(students, { status: 200 });
